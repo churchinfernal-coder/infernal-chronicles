@@ -1,0 +1,29 @@
+import { supabase } from "@/integrations/supabase/client";
+import { Database } from "@/integrations/supabase/types";
+
+// Typed table helpers
+export const db = {
+  profiles: () => supabase.from("profiles"),
+  conversations: () => supabase.from("conversations"),
+  conversation_participants: () => supabase.from("conversation_participants"),
+  messages: () => supabase.from("messages"),
+  message_reactions: () => supabase.from("message_reactions"),
+  user_roles: () => supabase.from("user_roles"),
+  posts: () => supabase.from("posts"),
+  friendships: () => supabase. from("friendships"),
+  coven_members: () => supabase.from("coven_members"),
+};
+
+// Typed RPC helper
+export const rpc = {
+  startConversation: async (otherUserId: string) => {
+    return supabase.rpc("start_conversation", { other_user_id: otherUserId });
+  },
+};
+
+export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+export type Message = Database["public"]["Tables"]["messages"]["Row"];
+export type Conversation = Database["public"]["Tables"]["conversations"]["Row"];
+export type MessageReaction = Database["public"]["Tables"]["message_reactions"]["Row"];
+
+export { supabase };

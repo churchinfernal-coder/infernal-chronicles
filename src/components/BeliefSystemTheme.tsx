@@ -1,0 +1,68 @@
+export const BELIEF_SYSTEMS = {
+  satanist: {
+    name: "Satanist",
+    color: "from-red-900 to-black",
+    accentColor: "text-red-500",
+    borderColor: "border-red-900/50",
+    description: "LaVeyan Satanism - Individual sovereignty and rational self-interest",
+    symbols: ["⛤", "🜏", "☽"],
+  },
+  luciferian: {
+    name: "Luciferian",
+    color: "from-amber-900 to-black",
+    accentColor: "text-amber-400",
+    borderColor: "border-amber-900/50",
+    description: "Light-bearer path - Enlightenment through knowledge and self-deification",
+    symbols: ["🕯️", "⭐", "🔥"],
+  },
+  infernalist: {
+    name: "Infernalist",
+    color: "from-orange-900 to-black",
+    accentColor: "text-orange-500",
+    borderColor: "border-orange-900/50",
+    description: "Infernal workings - Demonology and chthonic practices",
+    symbols: ["🔱", "💀", "⚡"],
+  },
+  thelemite: {
+    name: "Thelemite",
+    color: "from-purple-900 to-black",
+    accentColor: "text-purple-400",
+    borderColor: "border-purple-900/50",
+    description: "Thelemic path - Do what thou wilt shall be the whole of the Law",
+    symbols: ["🌟", "🦅", "🐍"],
+  },
+  chaos_magic: {
+    name: "Chaos Magic",
+    color: "from-indigo-900 to-black",
+    accentColor: "text-indigo-400",
+    borderColor: "border-indigo-900/50",
+    description: "Chaos paradigm - Results-oriented magical practice",
+    symbols: ["🎭", "🌀", "⚡"],
+  },
+  left_hand_path: {
+    name: "Left-Hand Path",
+    color: "from-slate-900 to-black",
+    accentColor: "text-slate-400",
+    borderColor: "border-slate-900/50",
+    description: "Antinomian practices - Self-empowerment through transgression",
+    symbols: ["☠️", "🖤", "🌑"],
+  },
+  demonolater: {
+    name: "Demonolater",
+    color: "from-rose-900 to-black",
+    accentColor: "text-rose-400",
+    borderColor: "border-rose-900/50",
+    description: "Demonic worship - Veneration of infernal entities",
+    symbols: ["👹", "🩸", "🕯️"],
+  },
+  dark_pagan: {
+    name: "Dark Pagan",
+    color: "from-green-900 to-black",
+    accentColor: "text-green-400",
+    borderColor: "border-green-900/50",
+    description: "Shadow paganism - Dark nature worship and chthonic deities",
+    symbols: ["🌿", "🌙", "🦇"],
+  },
+};
+
+export type BeliefSystemKey = keyof typeof BELIEF_SYSTEMS;

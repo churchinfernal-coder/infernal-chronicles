@@ -1,0 +1,38 @@
+<! DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title>Infernal Social — Connect, Share, Summon</title>
+    <meta name="description" content="Infernal Social — a privacy-first social platform to connect with friends, family and meet new people in the occult, left-hand path, tattoo and alternative communities." />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png" />
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet" />
+
+    <script type="module" src="/src/main.tsx"></script>
+  </head>
+
+  <body class="antialiased bg-background text-foreground">
+    <script>
+      // Kill service workers and clear manifest cache
+      if ('serviceWorker' in navigator) {
+        navigator. serviceWorker.getRegistrations().then(registrations => {
+          registrations.forEach(reg => reg.unregister());
+        });
+      }
+      // Clear manifest cache
+      if ('caches' in window) {
+        caches.keys().then(names => {
+          names.forEach(name => caches.delete(name));
+        });
+      }
+    </script>
+    <div id="root"></div>
+  </body>
+</html>
