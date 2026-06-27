@@ -1,0 +1,58 @@
+﻿import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin':  '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
+  try {
+    const { email } = await req.json()
+
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+    if (!emailRegex.test(email)) {
+      return new Response(
+        JSON.stringify({ valid: false, reason: 'Invalid email format' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      )
+    }
+
+    const disposableDomains = [
+      'tempmail.com', 'guerrillamail.com', '10minutemail.com', 'mailinator.com',
+      'throwaway.email', 'temp-mail.org', 'fakeinbox.com', 'trashmail.com',
+      'yopmail.com', 'sharklasers.com', 'getnada.com', 'maildrop.cc'
+    ]
+    const domain = email.split('@')[1]
+    if (disposableDomains.includes(domain)) {
+      return new Response(
+        JSON.stringify({ valid: false, reason: 'Disposable email addresses are not allowed' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      )
+    }
+
+    const dnsResponse = await fetch('https://dns.google/resolve?name=' + domain + '&type=MX')
+    const dnsData = await dnsResponse.json()
+    
+    if (! dnsData.Answer || dnsData.Answer.length === 0) {
+      return new Response(
+        JSON.stringify({ valid: false, reason: 'Email domain has no mail server' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      )
+    }
+
+    return new Response(
+      JSON.stringify({ valid: true }),
+      { headers: { ...corsHeaders, 'Content-Type':  'application/json' }, status: 200 }
+    )
+
+  } catch (error) {
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+    )
+  }
+})

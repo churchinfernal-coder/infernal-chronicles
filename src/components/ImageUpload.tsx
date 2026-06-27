@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -80,7 +80,7 @@ export function ImageUpload({
         {uploading && <Loader2 className="h-4 w-4 animate-spin" />}
       </div>
       <p className="text-xs text-muted-foreground">
-        Max 5MB • JPEG, PNG, or WebP
+        Max 5MB � JPEG, PNG, or WebP
       </p>
     </div>
   );

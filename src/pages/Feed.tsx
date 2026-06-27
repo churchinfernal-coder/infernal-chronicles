@@ -20,8 +20,9 @@ interface Post {
   user_id: string;
   content: string;
   post_type: string;
-  visibility: string;
-  media_url?: string;
+  post_section: string;
+  privacy: string;
+  media_url?:  string;
   media_type?: string;
   media_files?: string;
   created_at: string;
@@ -39,6 +40,7 @@ interface SearchResult {
 }
 
 const POSTS_PER_PAGE = 20;
+const SEARCH_DEBOUNCE_MS = 300;
 
 export default function Feed() {
   const [posts, setPosts] = useState<Post[]>([]);
@@ -60,24 +62,34 @@ export default function Feed() {
   });
   const [showFilters, setShowFilters] = useState(false);
   const observerTarget = useRef<HTMLDivElement>(null);
+  const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const fetchingRef = useRef(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    checkAuth();
-    fetchPosts(true);
+    const initializeFeed = async () => {
+      await checkAuth();
+      await fetchPosts(true);
+    };
+    initializeFeed();
+
     const unsubscribe = subscribeToNewPosts();
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      if (searchTimerRef. current) {
+        clearTimeout(searchTimerRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
     fetchPosts(true);
   }, [filters, sortBy]);
 
-  // Infinite scroll observer
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loading && !loadingMore && !searchResults) {
+        if (entries[0].isIntersecting && hasMore && !loading && !loadingMore && !searchResults && !fetchingRef.current) {
           loadMorePosts();
         }
       },
@@ -97,16 +109,28 @@ export default function Feed() {
   }, [hasMore, loading, loadingMore, searchResults, page]);
 
   const checkAuth = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    try {
+      const { data: { user }, error:  authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        navigate("/auth");
+        return;
+      }
+      setCurrentUserId(user. id);
+    } catch (error) {
+      console.error("Auth check error:", error);
       navigate("/auth");
-      return;
     }
-    setCurrentUserId(user. id);
   };
 
-  const fetchPosts = async (reset:  boolean = false) => {
+  const fetchPosts = async (reset: boolean = false) => {
+    if (fetchingRef.current) {
+      console.log("Fetch already in progress, skipping.. .");
+      return;
+    }
+
     try {
+      fetchingRef.current = true;
+
       if (reset) {
         setLoading(true);
         setPage(0);
@@ -115,19 +139,19 @@ export default function Feed() {
 
       const currentPage = reset ? 0 : page;
 
-      // Optimized query with JOIN
       let query = supabase
-        . from("posts")
+        .from("posts")
         .select(`
           *,
-          profiles! inner(username, avatar_url)
+          profiles(username, avatar_url)
         `)
-        .eq("visibility", "public")
-        .order("created_at", { ascending:  false })
+        .eq("privacy", "public")
+        .eq("post_section", "feed")
+        .order("created_at", { ascending: false })
         .range(currentPage * POSTS_PER_PAGE, (currentPage + 1) * POSTS_PER_PAGE - 1);
 
       if (filters.postType.length > 0) {
-        query = query. in("post_type", filters.postType);
+        query = query. in("post_type", filters. postType);
       }
 
       if (filters.hasMedia) {
@@ -139,11 +163,11 @@ export default function Feed() {
         let since = new Date();
         
         switch (filters.dateRange) {
-          case "today": 
+          case "today":  
             since. setHours(0, 0, 0, 0);
             break;
-          case "week": 
-            since.setDate(now. getDate() - 7);
+          case "week":
+            since.setDate(now.getDate() - 7);
             break;
           case "month":
             since.setMonth(now.getMonth() - 1);
@@ -153,73 +177,93 @@ export default function Feed() {
             break;
         }
         
-        query = query.gte("created_at", since. toISOString());
+        query = query.gte("created_at", since.toISOString());
       }
 
       const { data:  postsData, error:  postsError } = await query;
 
-      if (postsError) throw postsError;
+      if (postsError) {
+        console.error("Error fetching posts:", postsError);
+        setLoading(false);
+        setLoadingMore(false);
+        fetchingRef.current = false;
+        return;
+      }
 
       const newPosts = (postsData || []) as Post[];
       
       if (reset) {
         setPosts(newPosts);
+        setPage(1);
       } else {
-        setPosts(prev => [...prev, ... newPosts]);
+        setPosts(prev => [...prev, ...newPosts]);
+        setPage(prev => prev + 1);
       }
 
       setHasMore(newPosts.length === POSTS_PER_PAGE);
       
     } catch (error:  any) {
       console.error("Error fetching posts:", error);
-      toast.error("Failed to load posts");
     } finally {
       setLoading(false);
       setLoadingMore(false);
+      fetchingRef.current = false;
     }
   };
 
   const loadMorePosts = async () => {
-    if (loadingMore || !hasMore) return;
+    if (loadingMore || ! hasMore || fetchingRef.current) return;
     
     setLoadingMore(true);
-    setPage(prev => prev + 1);
     await fetchPosts(false);
   };
 
   const subscribeToNewPosts = () => {
-    const channel = supabase
-      .channel("public-posts-feed")
-      .on(
-        "postgres_changes",
-        { 
-          event: "INSERT", 
-          schema: "public", 
-          table: "posts",
-          filter: "visibility=eq.public"
-        },
-        async (payload) => {
-          // Fetch the new post with profile
-          const { data: newPost } = await supabase
-            . from("posts")
-            .select(`
-              *,
-              profiles! inner(username, avatar_url)
-            `)
-            .eq("id", payload.new.id)
-            .single();
+    try {
+      const channel = supabase
+        .channel("public-posts-feed")
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "posts",
+            filter: "privacy=eq.public AND post_section=eq.feed"
+          },
+          async (payload) => {
+            try {
+              const { data:  newPost, error:  fetchError } = await supabase
+                .from("posts")
+                .select(`
+                  *,
+                  profiles(username, avatar_url)
+                `)
+                .eq("id", payload.new.id)
+                .single();
 
-          if (newPost) {
-            setPosts(prev => [newPost as Post, ...prev]);
-            toast.success("New post appeared!", { duration: 2000 });
+              if (fetchError) {
+                console. error("Error fetching new post:", fetchError);
+                return;
+              }
+
+              if (newPost) {
+                setPosts(prev => [newPost as Post, ...prev]);
+                toast.success("New post appeared!", { duration: 2000 });
+              }
+            } catch (error) {
+              console.error("Error processing new post:", error);
+            }
           }
-        }
-      )
-      .subscribe();
+        )
+        .subscribe();
 
-    return () => {
-      supabase. removeChannel(channel);
-    };
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    } catch (error) {
+      console.error("Error subscribing to posts:", error);
+      return () => {};
+    }
   };
 
   const handlePostUpdated = () => {
@@ -230,79 +274,105 @@ export default function Feed() {
   const handlePostDeleted = (deletedId?:  string) => {
     if (deletedId) {
       setPosts(prev => prev.filter(p => p.id !== deletedId));
+      toast.success("Post deleted successfully");
     } else {
       fetchPosts(true);
+      toast.success("Post deleted successfully");
     }
-    toast.success("Post deleted successfully");
   };
 
   const performSearch = useCallback(async (query: string) => {
-    if (!query.trim()) {
+    if (! query.trim()) {
       setSearchResults(null);
       return;
     }
 
     setSearchLoading(true);
     try {
-      const searchTerm = `%${query}%`;
+      const searchTerm = `%${query.trim()}%`;
 
-      // Search posts with profiles
-      const { data: postsData } = await supabase
-        . from("posts")
+      const { data: postsData, error: postsError } = await supabase
+        .from("posts")
         .select(`
           *,
-          profiles!inner(username, avatar_url)
+          profiles(username, avatar_url)
         `)
-        .eq("visibility", "public")
+        .eq("privacy", "public")
+        .eq("post_section", "feed")
         .or(`content.ilike.${searchTerm},post_type.ilike.${searchTerm}`)
         .order("created_at", { ascending: false })
         .limit(20);
 
-      const { data: usersData } = await supabase
+      if (postsError) {
+        console.error("Posts search error:", postsError);
+        setSearchLoading(false);
+        return;
+      }
+
+      const { data: usersData, error:  usersError } = await supabase
         .from("profiles")
         .select("*")
         .or(`username.ilike.${searchTerm},bio.ilike.${searchTerm}`)
         .limit(10);
 
-      const { data: covensData } = await supabase
+      if (usersError) {
+        console.error("Users search error:", usersError);
+      }
+
+      const { data: covensData, error: covensError } = await supabase
         .from("covens")
         .select("*")
-        .or(`name.ilike.${searchTerm},description. ilike.${searchTerm}`)
+        .or(`name.ilike.${searchTerm},description.ilike.${searchTerm}`)
         .limit(10);
 
-      // Search media posts
-      const { data: mediaData } = await supabase
+      if (covensError) {
+        console.error("Covens search error:", covensError);
+      }
+
+      const { data: mediaData, error:  mediaError } = await supabase
         .from("posts")
         .select(`
           *,
-          profiles!inner(username, avatar_url)
+          profiles(username, avatar_url)
         `)
-        .eq("visibility", "public")
+        .eq("privacy", "public")
+        .eq("post_section", "feed")
         .or("media_url.not.is. null,media_files.not. is.null")
         .or(`content.ilike.${searchTerm}`)
         .order("created_at", { ascending: false })
         .limit(20);
 
+      if (mediaError) {
+        console.error("Media search error:", mediaError);
+      }
+
       setSearchResults({
-        posts:  (postsData || []) as Post[],
+        posts: (postsData || []) as Post[],
         users:  usersData || [],
         covens: covensData || [],
         media: (mediaData || []) as Post[],
       });
-    } catch (error: any) {
+    } catch (error:  any) {
       console.error("Search error:", error);
-      toast.error("Search failed");
     } finally {
       setSearchLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      performSearch(searchQuery);
-    }, 300);
+    if (searchTimerRef.current) {
+      clearTimeout(searchTimerRef. current);
+    }
 
-    return () => clearTimeout(timer);
+    searchTimerRef.current = setTimeout(() => {
+      performSearch(searchQuery);
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => {
+      if (searchTimerRef.current) {
+        clearTimeout(searchTimerRef.current);
+      }
+    };
   }, [searchQuery, performSearch]);
 
   const clearSearch = () => {
@@ -321,21 +391,21 @@ export default function Feed() {
     setSortBy("recent");
   };
 
-  const hasActiveFilters = 
-    filters.postType.length > 0 || 
-    filters.dateRange !== "all" || 
-    filters.hasMedia || 
+  const hasActiveFilters =
+    filters.postType.length > 0 ||
+    filters.dateRange !== "all" ||
+    filters.hasMedia ||
     filters.verifiedOnly ||
     sortBy !== "recent";
 
   const filteredPosts = useMemo(() => {
-    return searchResults ? searchResults.posts : posts;
+    return searchResults ?  searchResults.posts : posts;
   }, [searchResults, posts]);
 
   if (loading && page === 0) {
     return (
-      <div className="w-full max-w-4xl mx-auto py-4 md: py-6 px-3 sm:px-4 space-y-4">
-        {[... Array(3)].map((_, i) => (
+      <div className="w-full max-w-4xl mx-auto py-4 md:py-6 px-3 sm:px-4 space-y-4">
+        {[...Array(3)].map((_, i) => (
           <div key={i} className="bg-black/50 backdrop-blur-xl border border-primary/20 rounded-lg p-4 space-y-3">
             <div className="flex items-center gap-3">
               <Skeleton className="h-10 w-10 rounded-full" />
@@ -422,8 +492,8 @@ export default function Feed() {
 
               <div className="space-y-2">
                 <label className="text-xs font-medium block">Date Range</label>
-                <Select 
-                  value={filters.dateRange} 
+                <Select
+                  value={filters.dateRange}
                   onValueChange={(v: any) => setFilters(prev => ({ ...prev, dateRange: v }))}
                 >
                   <SelectTrigger className="w-full bg-background/50 h-9">
@@ -454,11 +524,11 @@ export default function Feed() {
                         ...prev,
                         postType: prev.postType.includes(type)
                           ? prev.postType.filter(t => t !== type)
-                          :  [...prev.postType, type]
+                          : [...prev.postType, type]
                       }));
                     }}
                   >
-                    {type.charAt(0).toUpperCase() + type.slice(1)}
+                    {type. charAt(0).toUpperCase() + type.slice(1)}
                   </Button>
                 ))}
               </div>
@@ -492,15 +562,15 @@ export default function Feed() {
 
         {hasActiveFilters && ! showFilters && (
           <div className="flex flex-wrap gap-2 items-center">
-            <span className="text-xs text-muted-foreground">Active: </span>
+            <span className="text-xs text-muted-foreground">Active:  </span>
             {sortBy !== "recent" && (
               <Badge variant="secondary" className="text-xs">{sortBy}</Badge>
             )}
             {filters.postType.map(type => (
               <Badge key={type} variant="secondary" className="text-xs">
                 {type}
-                <X 
-                  className="h-3 w-3 ml-1 cursor-pointer" 
+                <X
+                  className="h-3 w-3 ml-1 cursor-pointer"
                   onClick={() => setFilters(prev => ({
                     ...prev,
                     postType: prev.postType.filter(t => t !== type)
@@ -511,8 +581,8 @@ export default function Feed() {
             {filters.dateRange !== "all" && (
               <Badge variant="secondary" className="text-xs">
                 {filters.dateRange}
-                <X 
-                  className="h-3 w-3 ml-1 cursor-pointer" 
+                <X
+                  className="h-3 w-3 ml-1 cursor-pointer"
                   onClick={() => setFilters(prev => ({ ...prev, dateRange: "all" }))}
                 />
               </Badge>
@@ -520,8 +590,8 @@ export default function Feed() {
             {filters.hasMedia && (
               <Badge variant="secondary" className="text-xs">
                 Media
-                <X 
-                  className="h-3 w-3 ml-1 cursor-pointer" 
+                <X
+                  className="h-3 w-3 ml-1 cursor-pointer"
                   onClick={() => setFilters(prev => ({ ...prev, hasMedia: false }))}
                 />
               </Badge>
@@ -531,18 +601,18 @@ export default function Feed() {
       </div>
 
       {! searchResults && (
-        <CreatePost 
+        <CreatePost
           onPostCreated={() => {
             fetchPosts(true);
             toast.success("Posted successfully");
-          }} 
+          }}
         />
       )}
 
       {searchResults && searchLoading && (
         <div className="text-center py-8 text-muted-foreground">
           <Loader2 className="animate-spin h-8 w-8 mx-auto mb-2" />
-          <p>Searching... </p>
+          <p>Searching...</p>
         </div>
       )}
 
@@ -551,29 +621,36 @@ export default function Feed() {
           {activeTab === "all" && (
             <>
               {searchResults.posts.slice(0, 5).map((post) => (
-                <PostCard 
-                  key={post.id} 
-                  post={post} 
+                <PostCard
+                  key={post. id}
+                  post={post}
                   currentUserId={currentUserId}
                   onPostUpdated={handlePostUpdated}
                   onPostDeleted={() => handlePostDeleted(post. id)}
                 />
               ))}
               {searchResults.users.slice(0, 3).map((user) => (
-                <div 
-                  key={user.user_id} 
-                  className="bg-black/50 backdrop-blur-xl border border-primary/20 rounded-lg p-4 cursor-pointer hover:border-primary/40 transition-all"
-                  onClick={() => navigate(`/profile?user=${user.username}`)}
+                <div
+                  key={user.user_id}
+                  className="bg-black/50 backdrop-blur-xl border border-primary/20 rounded-lg p-4"
                 >
                   <div className="flex items-center gap-3">
-                    <Avatar className="h-12 w-12">
+                    <Avatar 
+                      className="h-12 w-12 cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => navigate(`/profile/${user.username}`)}
+                    >
                       <AvatarImage src={user.avatar_url} alt={user.username} />
                       <AvatarFallback className="bg-primary/20 text-primary text-lg font-semibold">
-                        {user.username?. charAt(0)?. toUpperCase() || "👤"}
+                        {user.username?. charAt(0)?.toUpperCase() || "👤"}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold truncate">{user.username || "Anonymous"}</h3>
+                      <h3 
+                        className="font-semibold truncate cursor-pointer hover:text-primary transition-colors"
+                        onClick={() => navigate(`/profile/${user.username}`)}
+                      >
+                        {user.username || "Anonymous"}
+                      </h3>
                       <p className="text-sm text-muted-foreground line-clamp-1">{user.bio || "No bio"}</p>
                     </div>
                   </div>
@@ -583,9 +660,9 @@ export default function Feed() {
           )}
 
           {activeTab === "posts" && searchResults.posts.map((post) => (
-            <PostCard 
-              key={post.id} 
-              post={post} 
+            <PostCard
+              key={post. id}
+              post={post}
               currentUserId={currentUserId}
               onPostUpdated={handlePostUpdated}
               onPostDeleted={() => handlePostDeleted(post.id)}
@@ -593,20 +670,27 @@ export default function Feed() {
           ))}
 
           {activeTab === "users" && searchResults.users.map((user) => (
-            <div 
-              key={user.user_id} 
-              className="bg-black/50 backdrop-blur-xl border border-primary/20 rounded-lg p-4 cursor-pointer hover:border-primary/40 transition-all"
-              onClick={() => navigate(`/profile?user=${user.username}`)}
+            <div
+              key={user.user_id}
+              className="bg-black/50 backdrop-blur-xl border border-primary/20 rounded-lg p-4"
             >
               <div className="flex items-center gap-3">
-                <Avatar className="h-12 w-12">
+                <Avatar 
+                  className="h-12 w-12 cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={() => navigate(`/profile/${user.username}`)}
+                >
                   <AvatarImage src={user.avatar_url} alt={user.username} />
                   <AvatarFallback className="bg-primary/20 text-primary text-lg font-semibold">
                     {user.username?.charAt(0)?.toUpperCase() || "👤"}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold truncate">{user.username || "Anonymous"}</h3>
+                  <h3 
+                    className="font-semibold truncate cursor-pointer hover:text-primary transition-colors"
+                    onClick={() => navigate(`/profile/${user.username}`)}
+                  >
+                    {user.username || "Anonymous"}
+                  </h3>
                   <p className="text-sm text-muted-foreground line-clamp-1">{user.bio || "No bio"}</p>
                 </div>
               </div>
@@ -614,9 +698,9 @@ export default function Feed() {
           ))}
 
           {activeTab === "covens" && searchResults.covens. map((coven) => (
-            <div 
-              key={coven.id} 
-              className="bg-black/50 backdrop-blur-xl border border-primary/20 rounded-lg p-4 cursor-pointer hover: border-primary/40 transition-all"
+            <div
+              key={coven.id}
+              className="bg-black/50 backdrop-blur-xl border border-primary/20 rounded-lg p-4 cursor-pointer hover:border-primary/40 transition-all"
               onClick={() => navigate(`/covens/${coven.id}`)}
             >
               <h3 className="font-semibold">{coven.name}</h3>
@@ -625,9 +709,9 @@ export default function Feed() {
           ))}
 
           {activeTab === "media" && searchResults.media.map((post) => (
-            <PostCard 
-              key={post.id} 
-              post={post} 
+            <PostCard
+              key={post.id}
+              post={post}
               currentUserId={currentUserId}
               onPostUpdated={handlePostUpdated}
               onPostDeleted={() => handlePostDeleted(post.id)}
@@ -640,23 +724,22 @@ export default function Feed() {
         <>
           <div className="space-y-3 md:space-y-4">
             {filteredPosts.map((post) => (
-              <PostCard 
-                key={post.id} 
-                post={post} 
+              <PostCard
+                key={post.id}
+                post={post}
                 currentUserId={currentUserId}
                 onPostUpdated={handlePostUpdated}
                 onPostDeleted={() => handlePostDeleted(post.id)}
               />
             ))}
-            
+
             {filteredPosts.length === 0 && ! loading && (
               <div className="text-center py-12 text-muted-foreground">
-                No posts match your filters. 
+                No posts match your filters.
               </div>
             )}
           </div>
 
-          {/* Infinite Scroll Trigger */}
           <div ref={observerTarget} className="flex justify-center py-4">
             {loadingMore && (
               <div className="flex flex-col items-center gap-2 text-muted-foreground">

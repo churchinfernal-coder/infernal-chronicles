@@ -1,12 +1,13 @@
+import React from "react";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { 
-  Sheet, 
-  SheetContent, 
-  SheetHeader, 
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
   SheetTitle,
-  SheetDescription 
+  SheetDescription
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -23,7 +24,8 @@ import {
   CheckCheck,
   Trash2,
   Settings,
-  Filter
+  Filter,
+  UserX
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -36,69 +38,75 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { formatDistanceToNow } from "date-fns";
 
-// Types matching YOUR actual schema
+// Types matching actual schema
 interface Notification {
   id: string;
   user_id: string;
-  type: string;
+  type:   string;
   title: string;
   message: string;
-  link: string | null;
-  read: boolean;
-  created_at: string;
+  link:   string | null;
+  read:   boolean;
+  created_at:   string;
 }
 
 interface NotificationPanelProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  open:  boolean;
+  onOpenChange:  (open: boolean) => void;
+  unreadCount?:  number;
+  onUnreadCountChange?: (count: number) => void;
 }
 
 // Notification Icon Mapper
 const getNotificationIcon = (type: string) => {
-  const iconMap = {
+  const iconMap:  Record<string, React.ReactNode> = {
     like: <Heart className="h-4 w-4 text-rose-500" />,
     comment: <MessageCircle className="h-4 w-4 text-blue-500" />,
     friend_request: <UserPlus className="h-4 w-4 text-green-500" />,
     friend_accept: <Users className="h-4 w-4 text-green-500" />,
+    friend_reject: <UserX className="h-4 w-4 text-red-500" />,
     coven_invite: <Users className="h-4 w-4 text-purple-500" />,
     mention: <Bell className="h-4 w-4 text-orange-500" />,
     prime_expiry: <Crown className="h-4 w-4 text-yellow-500" />,
-    message: <MessageCircle className="h-4 w-4 text-primary" />
+    message:   <MessageCircle className="h-4 w-4 text-primary" />
   };
-  return (iconMap as any)[type] || <Bell className="h-4 w-4" />;
+  return iconMap[type] || <Bell className="h-4 w-4" />;
 };
 
 // Single Notification Item Component
-const NotificationItem = ({ 
-  notification, 
-  onRead, 
-  onDelete, 
-  onClick 
-}: { 
-  notification: Notification;
-  onRead: (id: string) => void;
-  onDelete: (id: string) => void;
+const NotificationItem = ({
+  notification,
+  onRead,
+  onDelete,
+  onClick
+}: {
+  notification:  Notification;
+  onRead:  (id: string) => void;
+  onDelete: (id:  string) => void;
   onClick: (notification: Notification) => void;
 }) => {
   return (
     <div
       className={cn(
         "group relative flex gap-3 p-4 border-b border-border/50 transition-all hover:bg-accent/50 cursor-pointer",
-        ! notification.read && "bg-accent/20"
+        !  notification.read && "bg-accent/20"
       )}
       onClick={() => onClick(notification)}
-      role="button"
-      tabIndex={0}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           onClick(notification);
         }
       }}
-      aria-label={`${notification.title} - ${notification.read ? "Read" : "Unread"}`}
+      role="button"
+      tabIndex={0}
+      aria-label={`${notification.title} - ${notification. read ? "Read" : "Unread"}`}
     >
-      {! notification.read && (
-        <div className="absolute left-1 top-1/2 -translate-y-1/2 w-2 h-2 bg-primary rounded-full" aria-hidden="true" />
+      {!  notification.read && (
+        <div
+          className="absolute left-1 top-1/2 -translate-y-1/2 w-2 h-2 bg-primary rounded-full animate-pulse"
+          aria-hidden="true"
+        />
       )}
 
       <div className="shrink-0">
@@ -110,18 +118,18 @@ const NotificationItem = ({
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2 mb-1">
           <h4 className="text-sm font-semibold truncate">{notification.title}</h4>
-          <time 
+          <time
             className="text-xs text-muted-foreground shrink-0"
             dateTime={notification.created_at}
           >
-            {formatDistanceToNow(new Date(notification. created_at), { addSuffix: true })}
+            {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
           </time>
         </div>
         <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
           {notification.message}
         </p>
-        <Badge variant="outline" className="text-xs">
-          {notification.type.replace("_", " ")}
+        <Badge variant="outline" className="text-xs capitalize">
+          {notification.  type. replace(/_/g, " ")}
         </Badge>
       </div>
 
@@ -143,7 +151,7 @@ const NotificationItem = ({
         <Button
           variant="ghost"
           size="icon"
-          className="h-7 w-7 text-destructive"
+          className="h-7 w-7 text-destructive hover:text-destructive"
           onClick={(e) => {
             e.stopPropagation();
             onDelete(notification.id);
@@ -168,29 +176,40 @@ const NotificationSkeleton = () => (
   </div>
 );
 
-const NotificationPanel = ({ open, onOpenChange }: NotificationPanelProps) => {
+const NotificationPanel = ({ open, onOpenChange, onUnreadCountChange }:  NotificationPanelProps) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "unread">("all");
   const [user, setUser] = useState<any>(null);
   const navigate = useNavigate();
 
+  // Initialize user
   useEffect(() => {
-    supabase.auth.getUser(). then(({ data: { user } }) => {
-      setUser(user);
-    });
+    const initializeUser = async () => {
+      try {
+        const { data:   { user }, error } = await supabase.  auth.getUser();
+        if (error) {
+          console. error("Auth error:", error);
+          return;
+        }
+        setUser(user);
+      } catch (error) {
+        console.error("Error getting user:", error);
+      }
+    };
+    initializeUser();
   }, []);
 
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
-    
+
     setLoading(true);
     try {
-      let query = supabase
-        . from("notifications")
+      let query = (supabase as any)
+        .from("notifications")
         .select("*")
         .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
+        .order("created_at", { ascending:   false })
         .limit(50);
 
       if (filter === "unread") {
@@ -199,95 +218,162 @@ const NotificationPanel = ({ open, onOpenChange }: NotificationPanelProps) => {
 
       const { data, error } = await query;
 
-      if (error) throw error;
+      if (error) {
+        console.error("Fetch notifications error:", error);
+        throw error;
+      }
+
       setNotifications(data || []);
-    } catch (error) {
-      console. error("Error fetching notifications:", error);
-      toast.error("Failed to load notifications");
+      
+      // Update unread count
+      const unread = (data || []).filter((n:  Notification) => !n.read).length;
+      onUnreadCountChange?.(unread);
+    } catch (error:  any) {
+      console.error("Error fetching notifications:", error);
+      toast.error(error. message || "Failed to load notifications");
     } finally {
       setLoading(false);
     }
-  }, [user, filter]);
+  }, [user, filter, onUnreadCountChange]);
 
+  // Fetch notifications when sheet opens OR when user changes
   useEffect(() => {
-    if (open && user) {
+    if (user) {
       fetchNotifications();
     }
-  }, [open, user, fetchNotifications]);
+  }, [user, fetchNotifications]);
 
+  // Subscribe to real-time notification updates
   useEffect(() => {
-    if (! user) return;
+    if (!  user) return;
 
-    const channel = supabase
-      .channel("notifications")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "notifications",
-          filter: `user_id=eq.${user.id}`
-        },
-        (payload) => {
-          if (payload. eventType === "INSERT") {
-            setNotifications((prev) => [payload.new as Notification, ...prev]);
-            toast.info(
-              (payload.new as Notification).title,
-              { description: (payload.new as Notification).message }
-            );
-          } else if (payload.eventType === "UPDATE") {
-            setNotifications((prev) =>
-              prev.map((n) => (n.id === payload.new.id ? payload.new as Notification : n))
-            );
-          } else if (payload.eventType === "DELETE") {
-            setNotifications((prev) => prev.filter((n) => n.id !== payload.old.id));
+    console.log('🔔 Setting up notification realtime subscription for user:', user.id);
+
+    try {
+      const channel = supabase
+        .channel(`notifications_realtime_${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "notifications",
+            filter: `user_id=eq.${user.id}`
+          },
+          (payload) => {
+            console.log('🔔 Notification event received:', payload.eventType, payload);
+            
+            try {
+              if (payload.eventType === "INSERT") {
+                const newNotification = payload.new as Notification;
+                setNotifications((prev) => [newNotification, ...prev]);
+                
+                // Show toast
+                toast.info(newNotification.title, { 
+                  description: newNotification.message,
+                  duration: 5000
+                });
+                
+                // Update unread count
+                setNotifications((prev) => {
+                  const unread = prev.filter(n => !n.read).length;
+                  onUnreadCountChange?.(unread);
+                  return prev;
+                });
+              } else if (payload.eventType === "UPDATE") {
+                setNotifications((prev) => {
+                  const updated = prev.map((n) =>
+                    n. id === payload.new.id ?   (payload.new as Notification) : n
+                  );
+                  const unread = updated.filter(n => !n.read).length;
+                  onUnreadCountChange?.(unread);
+                  return updated;
+                });
+              } else if (payload.eventType === "DELETE") {
+                setNotifications((prev) => {
+                  const filtered = prev.filter((n) => n.id !== payload.old.id);
+                  const unread = filtered.filter(n => !n.read).length;
+                  onUnreadCountChange?.(unread);
+                  return filtered;
+                });
+              }
+            } catch (error) {
+              console.error("Error processing notification event:", error);
+            }
           }
-        }
-      )
-      .subscribe();
+        )
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            console.log('✅ Notification realtime subscribed');
+          } else if (status === 'CHANNEL_ERROR') {
+            console.error('❌ Notification realtime subscription failed');
+          }
+        });
 
-    return () => {
-      supabase. removeChannel(channel);
-    };
-  }, [user]);
+      return () => {
+        console.log('🔔 Cleaning up notification subscription');
+        supabase.removeChannel(channel);
+      };
+    } catch (error) {
+      console.error("Subscription error:", error);
+      return () => {};
+    }
+  }, [user, onUnreadCountChange]);
 
-  const markAsRead = useCallback(async (id: string) => {
+  const markAsRead = useCallback(async (id:  string) => {
     try {
       const { error } = await (supabase as any)
         .from("notifications")
         .update({ read: true })
         .eq("id", id);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Mark as read error:", error);
+        throw error;
+      }
 
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-      );
-    } catch (error) {
+      setNotifications((prev) => {
+        const updated = prev.map((n) => (n.id === id ?   { ...n, read: true } :  n));
+        const unread = updated.filter(n => !n.read).length;
+        onUnreadCountChange?.(unread);
+        return updated;
+      });
+    } catch (error:   any) {
       console.error("Error marking notification as read:", error);
-      toast.error("Failed to mark as read");
+      toast.error(error.message || "Failed to mark as read");
     }
-  }, []);
+  }, [onUnreadCountChange]);
 
   const deleteNotification = useCallback(async (id: string) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("notifications")
         .delete()
         .eq("id", id);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Delete notification error:", error);
+        throw error;
+      }
 
-      setNotifications((prev) => prev.filter((n) => n.id !== id));
+      setNotifications((prev) => {
+        const filtered = prev.filter((n) => n.id !== id);
+        const unread = filtered. filter(n => !n.read).length;
+        onUnreadCountChange?.(unread);
+        return filtered;
+      });
       toast.success("Notification deleted");
-    } catch (error) {
+    } catch (error:  any) {
       console.error("Error deleting notification:", error);
-      toast.error("Failed to delete notification");
+      toast.error(error. message || "Failed to delete notification");
     }
-  }, []);
+  }, [onUnreadCountChange]);
 
   const markAllAsRead = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      toast.error("Not authenticated");
+      return;
+    }
 
     try {
       const { error } = await (supabase as any)
@@ -296,59 +382,83 @@ const NotificationPanel = ({ open, onOpenChange }: NotificationPanelProps) => {
         .eq("user_id", user.id)
         .eq("read", false);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Mark all as read error:", error);
+        throw error;
+      }
 
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      setNotifications((prev) => {
+        const updated = prev.map((n) => ({ ...n, read: true }));
+        onUnreadCountChange?.(0);
+        return updated;
+      });
       toast.success("All notifications marked as read");
-    } catch (error) {
-      console. error("Error marking all as read:", error);
-      toast. error("Failed to mark all as read");
+    } catch (error: any) {
+      console.error("Error marking all as read:", error);
+      toast.error(error.message || "Failed to mark all as read");
     }
-  }, [user]);
+  }, [user, onUnreadCountChange]);
 
   const deleteAllRead = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      toast.error("Not authenticated");
+      return;
+    }
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("notifications")
         .delete()
         .eq("user_id", user.id)
         .eq("read", true);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Delete all read error:", error);
+        throw error;
+      }
 
-      setNotifications((prev) => prev.filter((n) => !n.read));
+      setNotifications((prev) => {
+        const filtered = prev.filter((n) => !n.read);
+        const unread = filtered.filter(n => !n.read).length;
+        onUnreadCountChange?.(unread);
+        return filtered;
+      });
       toast.success("All read notifications deleted");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting read notifications:", error);
-      toast. error("Failed to delete notifications");
+      toast.error(error.message || "Failed to delete notifications");
     }
-  }, [user]);
+  }, [user, onUnreadCountChange]);
 
-  const handleNotificationClick = useCallback((notification: Notification) => {
-    markAsRead(notification.id);
-    
-    if (notification.link) {
-      onOpenChange(false);
-      navigate(notification.link);
-    }
-  }, [markAsRead, navigate, onOpenChange]);
+  const handleNotificationClick = useCallback(
+    (notification: Notification) => {
+      markAsRead(notification.id);
+
+      if (notification.link) {
+        onOpenChange(false);
+        navigate(notification.link);
+      }
+    },
+    [markAsRead, navigate, onOpenChange]
+  );
 
   const unreadCount = useMemo(
-    () => notifications.filter((n) => !n.read). length,
+    () => notifications.filter((n) => !n.read).length,
     [notifications]
   );
 
   const filteredNotifications = useMemo(
-    () => filter === "unread" ? notifications. filter((n) => !n. read) : notifications,
+    () =>
+      filter === "unread"
+        ? notifications.filter((n) => !n.read)
+        : notifications,
     [notifications, filter]
   );
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent 
-        side="right" 
+      <SheetContent
+        side="right"
         className="w-full sm:w-[400px] p-0 flex flex-col"
         aria-describedby="notification-description"
       >
@@ -358,16 +468,21 @@ const NotificationPanel = ({ open, onOpenChange }: NotificationPanelProps) => {
               <Bell className="h-5 w-5 text-primary" aria-hidden="true" />
               <SheetTitle className="text-lg">Notifications</SheetTitle>
               {unreadCount > 0 && (
-                <Badge variant="destructive" className="h-5 min-w-5 px-1 text-xs">
-                  {unreadCount}
+                <Badge variant="destructive" className="h-5 min-w-5 px-1 text-xs animate-pulse">
+                  {unreadCount > 99 ? "99+" : unreadCount}
                 </Badge>
               )}
             </div>
-            
+
             <div className="flex items-center gap-1">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Filter notifications">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    aria-label="Filter notifications"
+                  >
                     <Filter className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -385,14 +500,22 @@ const NotificationPanel = ({ open, onOpenChange }: NotificationPanelProps) => {
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Notification actions">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    aria-label="Notification actions"
+                  >
                     <Settings className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>Actions</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={markAllAsRead} disabled={unreadCount === 0}>
+                  <DropdownMenuItem
+                    onClick={markAllAsRead}
+                    disabled={unreadCount === 0}
+                  >
                     <CheckCheck className="mr-2 h-4 w-4" />
                     Mark All as Read
                   </DropdownMenuItem>
@@ -410,7 +533,7 @@ const NotificationPanel = ({ open, onOpenChange }: NotificationPanelProps) => {
             </div>
           </div>
           <SheetDescription id="notification-description" className="sr-only">
-            View and manage your notifications.  {unreadCount} unread notifications.
+            View and manage your notifications.   {unreadCount} unread notifications.  
           </SheetDescription>
         </SheetHeader>
 
@@ -422,12 +545,15 @@ const NotificationPanel = ({ open, onOpenChange }: NotificationPanelProps) => {
               ))}
             </div>
           ) : filteredNotifications.length === 0 ? (
-            <div 
+            <div
               className="flex flex-col items-center justify-center h-full py-12 px-4 text-center"
               role="status"
               aria-live="polite"
             >
-              <Bell className="h-12 w-12 text-muted-foreground/50 mb-4" aria-hidden="true" />
+              <Bell
+                className="h-12 w-12 text-muted-foreground/50 mb-4"
+                aria-hidden="true"
+              />
               <h3 className="text-lg font-semibold mb-2">No Notifications</h3>
               <p className="text-sm text-muted-foreground">
                 {filter === "unread"
@@ -437,7 +563,7 @@ const NotificationPanel = ({ open, onOpenChange }: NotificationPanelProps) => {
             </div>
           ) : (
             <div role="list" aria-label="Notifications">
-              {filteredNotifications.map((notification) => (
+              {filteredNotifications. map((notification) => (
                 <NotificationItem
                   key={notification.id}
                   notification={notification}
@@ -450,7 +576,7 @@ const NotificationPanel = ({ open, onOpenChange }: NotificationPanelProps) => {
           )}
         </ScrollArea>
 
-        {! loading && filteredNotifications.length > 0 && (
+        {!  loading && filteredNotifications.length > 0 && (
           <div className="border-t border-border px-4 py-3">
             <Button
               variant="ghost"

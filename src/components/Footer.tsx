@@ -1,18 +1,6 @@
 import React from "react";
 import { Twitter, ExternalLink } from "lucide-react";
 
-/**
- * Footer.tsx
- *
- * Fixed TypeScript error "Cannot find namespace 'JSX'":
- * - Removed the explicit return type annotation (JSX.Element) from the function signature.
- *   Some TS setups (or missing @types/react) cause `JSX` namespace errors when you use that annotation.
- * - If you'd rather keep a return type, ensure your tsconfig includes the proper JSX setting
- *   (e.g. "jsx": "react-jsx") and install @types/react for classic React typings.
- *
- * Place at: src/components/Footer.tsx
- */
-
 const prefetchMap: Record<string, () => Promise<any>> = {
   "/about": () => import("../pages/AboutUs"),
   "/join": () => import("../pages/JoinNow"),
@@ -32,19 +20,49 @@ export default function Footer() {
 
   return (
     <footer className="bg-[#050505] border-t border-neutral-800 text-sm text-muted-foreground">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="text-xs text-crimson-300 font-semibold">Infernal Social</div>
-          <div className="text-xs">© {year} Infernal Social. All rights reserved.</div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg: px-8 py-6 md:py-8">
+        {/* Main Footer Content */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-6">
+          {/* Brand */}
+          <div className="flex flex-col gap-2">
+            <div className="text-base font-semibold text-crimson-300">
+              👹 Infernal Social
+            </div>
+            <div className="text-xs text-muted-foreground">
+              © {year} Infernal Social. All rights reserved.
+            </div>
+          </div>
+
+          {/* Social Links */}
+          <div className="flex items-center gap-4">
+            <a
+              href="https://twitter.com/infernalsocial"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-crimson-300 hover:text-crimson-400 p-2 rounded-lg hover:bg-crimson-300/10 transition-colors"
+              aria-label="Infernal Social on Twitter"
+            >
+              <Twitter className="h-5 w-5" />
+            </a>
+
+            <a
+              href="/sitemap.xml"
+              className="text-muted-foreground hover:text-crimson-300 inline-flex items-center gap-1.5 text-xs hover:underline"
+              aria-label="Sitemap"
+            >
+              Sitemap <ExternalLink className="h-3 w-3" />
+            </a>
+          </div>
         </div>
 
-        <nav aria-label="Footer" className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          <div className="flex gap-3 flex-wrap">
+        {/* Footer Links */}
+        <nav aria-label="Footer Navigation" className="border-t border-neutral-800 pt-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap gap-x-6 gap-y-3">
             <a
               href="/about"
               onMouseEnter={() => prefetchRoute("/about")}
               onFocus={() => prefetchRoute("/about")}
-              className="text-crimson-300 hover:underline"
+              className="text-crimson-300 hover: text-crimson-400 hover:underline text-xs md: text-sm transition-colors"
             >
               About
             </a>
@@ -53,7 +71,7 @@ export default function Footer() {
               href="/join"
               onMouseEnter={() => prefetchRoute("/join")}
               onFocus={() => prefetchRoute("/join")}
-              className="text-crimson-300 hover:underline"
+              className="text-crimson-300 hover:text-crimson-400 hover:underline text-xs md:text-sm transition-colors"
             >
               Join
             </a>
@@ -62,7 +80,7 @@ export default function Footer() {
               href="/guidelines"
               onMouseEnter={() => prefetchRoute("/guidelines")}
               onFocus={() => prefetchRoute("/guidelines")}
-              className="text-crimson-300 hover:underline"
+              className="text-crimson-300 hover:text-crimson-400 hover: underline text-xs md:text-sm transition-colors"
             >
               Community Guidelines
             </a>
@@ -71,7 +89,7 @@ export default function Footer() {
               href="/privacy"
               onMouseEnter={() => prefetchRoute("/privacy")}
               onFocus={() => prefetchRoute("/privacy")}
-              className="text-crimson-300 hover:underline"
+              className="text-crimson-300 hover:text-crimson-400 hover:underline text-xs md:text-sm transition-colors"
             >
               Privacy
             </a>
@@ -80,7 +98,7 @@ export default function Footer() {
               href="/terms"
               onMouseEnter={() => prefetchRoute("/terms")}
               onFocus={() => prefetchRoute("/terms")}
-              className="text-crimson-300 hover:underline"
+              className="text-crimson-300 hover:text-crimson-400 hover:underline text-xs md:text-sm transition-colors"
             >
               Terms
             </a>
@@ -89,29 +107,9 @@ export default function Footer() {
               href="/disclaimer"
               onMouseEnter={() => prefetchRoute("/disclaimer")}
               onFocus={() => prefetchRoute("/disclaimer")}
-              className="text-crimson-300 hover:underline"
+              className="text-crimson-300 hover:text-crimson-400 hover:underline text-xs md:text-sm transition-colors"
             >
               Disclaimer
-            </a>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <a
-              href="https://twitter.com/infernalsocial"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-crimson-300 hover:text-crimson-400 p-1 rounded"
-              aria-label="Infernal Social on Twitter"
-            >
-              <Twitter className="h-4 w-4" />
-            </a>
-
-            <a
-              href="/sitemap.xml"
-              className="text-muted-foreground hover:text-crimson-300 inline-flex items-center gap-1"
-              aria-label="Sitemap"
-            >
-              Sitemap <ExternalLink className="h-3 w-3" />
             </a>
           </div>
         </nav>

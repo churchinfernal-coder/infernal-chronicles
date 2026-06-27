@@ -1,0 +1,550 @@
+import { createClient } from '@supabase/supabase-js';
+import { config } from 'dotenv';
+
+config();
+
+const supabase = createClient(process.env.VITE_SUPABASE_URL, process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY);
+
+const COMPLETE_DATA = {
+  'US': {
+    states: [
+      { name: 'Alabama', slug: 'alabama', code: 'AL', cities: [
+        { name: 'Birmingham', slug: 'birmingham', lat: 33.5207, lon: -86.8025, pop: 212113 },
+        { name: 'Montgomery', slug: 'montgomery', lat: 32.3792, lon: -86.3077, pop: 200603 }
+      ]},
+      { name: 'Alaska', slug: 'alaska', code: 'AK', cities: [
+        { name: 'Anchorage', slug: 'anchorage', lat: 61.2181, lon: -149.9003, pop: 291247 }
+      ]},
+      { name: 'Arizona', slug: 'arizona', code: 'AZ', cities: [
+        { name: 'Phoenix', slug: 'phoenix', lat: 33.4484, lon: -112.0740, pop: 1680992 },
+        { name: 'Tucson', slug: 'tucson', lat: 32.2226, lon: -110.9747, pop: 548073 },
+        { name: 'Mesa', slug: 'mesa', lat: 33.4152, lon: -111.8315, pop: 508958 }
+      ]},
+      { name: 'Arkansas', slug: 'arkansas', code: 'AR', cities: [
+        { name: 'Little Rock', slug: 'little-rock', lat: 34.7465, lon: -92.2896, pop: 202591 }
+      ]},
+      { name: 'California', slug: 'california', code: 'CA', cities: [
+        { name: 'Los Angeles', slug: 'los-angeles', lat: 34.0522, lon: -118.2437, pop: 3898747 },
+        { name: 'San Diego', slug: 'san-diego', lat: 32.7157, lon: -117.1611, pop: 1386932 },
+        { name: 'San Jose', slug: 'san-jose', lat: 37.3382, lon: -121.8863, pop: 1013240 },
+        { name: 'San Francisco', slug: 'san-francisco', lat: 37.7749, lon: -122.4194, pop: 873965 },
+        { name: 'Fresno', slug: 'fresno', lat: 36.7378, lon: -119.7871, pop: 530093 },
+        { name: 'Sacramento', slug: 'sacramento', lat: 38.5816, lon: -121.4944, pop: 508529 },
+        { name: 'Long Beach', slug: 'long-beach', lat: 33.7701, lon: -118.1937, pop: 466742 },
+        { name: 'Oakland', slug: 'oakland', lat: 37.8044, lon: -122.2712, pop: 433031 }
+      ]},
+      { name: 'Colorado', slug: 'colorado', code: 'CO', cities: [
+        { name: 'Denver', slug: 'denver', lat: 39.7392, lon: -104.9903, pop: 715522 },
+        { name: 'Colorado Springs', slug: 'colorado-springs', lat: 38.8339, lon: -104.8214, pop: 478961 }
+      ]},
+      { name: 'Connecticut', slug: 'connecticut', code: 'CT', cities: [
+        { name: 'Bridgeport', slug: 'bridgeport', lat: 41.1865, lon: -73.1952, pop: 148654 }
+      ]},
+      { name: 'Delaware', slug: 'delaware', code: 'DE', cities: [
+        { name: 'Wilmington', slug: 'wilmington', lat: 39.7391, lon: -75.5398, pop: 70898 }
+      ]},
+      { name: 'Florida', slug: 'florida', code: 'FL', cities: [
+        { name: 'Jacksonville', slug: 'jacksonville', lat: 30.3322, lon: -81.6557, pop: 949611 },
+        { name: 'Miami', slug: 'miami', lat: 25.7617, lon: -80.1918, pop: 467963 },
+        { name: 'Tampa', slug: 'tampa', lat: 27.9506, lon: -82.4572, pop: 399700 },
+        { name: 'Orlando', slug: 'orlando', lat: 28.5383, lon: -81.3792, pop: 307573 },
+        { name: 'St Petersburg', slug: 'st-petersburg', lat: 27.7676, lon: -82.6403, pop: 265098 }
+      ]},
+      { name: 'Georgia', slug: 'georgia', code: 'GA', cities: [
+        { name: 'Atlanta', slug: 'atlanta', lat: 33.7490, lon: -84.3880, pop: 498715 },
+        { name: 'Columbus', slug: 'columbus-ga', lat: 32.4609, lon: -84.9877, pop: 206922 },
+        { name: 'Augusta', slug: 'augusta', lat: 33.4735, lon: -82.0105, pop: 202081 }
+      ]},
+      { name: 'Hawaii', slug: 'hawaii', code: 'HI', cities: [
+        { name: 'Honolulu', slug: 'honolulu', lat: 21.3099, lon: -157.8581, pop: 350964 }
+      ]},
+      { name: 'Idaho', slug: 'idaho', code: 'ID', cities: [
+        { name: 'Boise', slug: 'boise', lat: 43.6150, lon: -116.2023, pop: 235684 }
+      ]},
+      { name: 'Illinois', slug: 'illinois', code: 'IL', cities: [
+        { name: 'Chicago', slug: 'chicago', lat: 41.8781, lon: -87.6298, pop: 2746388 },
+        { name: 'Aurora', slug: 'aurora', lat: 41.7606, lon: -88.3201, pop: 180542 },
+        { name: 'Naperville', slug: 'naperville', lat: 41.7508, lon: -88.1535, pop: 149104 }
+      ]},
+      { name: 'Indiana', slug: 'indiana', code: 'IN', cities: [
+        { name: 'Indianapolis', slug: 'indianapolis', lat: 39.7684, lon: -86.1581, pop: 887642 },
+        { name: 'Fort Wayne', slug: 'fort-wayne', lat: 41.0793, lon: -85.1394, pop: 270402 }
+      ]},
+      { name: 'Iowa', slug: 'iowa', code: 'IA', cities: [
+        { name: 'Des Moines', slug: 'des-moines', lat: 41.5868, lon: -93.6250, pop: 214133 }
+      ]},
+      { name: 'Kansas', slug: 'kansas', code: 'KS', cities: [
+        { name: 'Wichita', slug: 'wichita', lat: 37.6872, lon: -97.3301, pop: 397532 }
+      ]},
+      { name: 'Kentucky', slug: 'kentucky', code: 'KY', cities: [
+        { name: 'Louisville', slug: 'louisville', lat: 38.2527, lon: -85.7585, pop: 617638 }
+      ]},
+      { name: 'Louisiana', slug: 'louisiana', code: 'LA', cities: [
+        { name: 'New Orleans', slug: 'new-orleans', lat: 29.9511, lon: -90.0715, pop: 391006 },
+        { name: 'Baton Rouge', slug: 'baton-rouge', lat: 30.4515, lon: -91.1871, pop: 227470 }
+      ]},
+      { name: 'Maine', slug: 'maine', code: 'ME', cities: [
+        { name: 'Portland', slug: 'portland-me', lat: 43.6591, lon: -70.2568, pop: 68408 }
+      ]},
+      { name: 'Maryland', slug: 'maryland', code: 'MD', cities: [
+        { name: 'Baltimore', slug: 'baltimore', lat: 39.2904, lon: -76.6122, pop: 585708 }
+      ]},
+      { name: 'Massachusetts', slug: 'massachusetts', code: 'MA', cities: [
+        { name: 'Boston', slug: 'boston', lat: 42.3601, lon: -71.0589, pop: 692600 },
+        { name: 'Worcester', slug: 'worcester', lat: 42.2626, lon: -71.8023, pop: 206518 }
+      ]},
+      { name: 'Michigan', slug: 'michigan', code: 'MI', cities: [
+        { name: 'Detroit', slug: 'detroit', lat: 42.3314, lon: -83.0458, pop: 672662 },
+        { name: 'Grand Rapids', slug: 'grand-rapids', lat: 42.9634, lon: -85.6681, pop: 198917 }
+      ]},
+      { name: 'Minnesota', slug: 'minnesota', code: 'MN', cities: [
+        { name: 'Minneapolis', slug: 'minneapolis', lat: 44.9778, lon: -93.2650, pop: 429954 },
+        { name: 'St Paul', slug: 'st-paul', lat: 44.9537, lon: -93.0900, pop: 308096 }
+      ]},
+      { name: 'Mississippi', slug: 'mississippi', code: 'MS', cities: [
+        { name: 'Jackson', slug: 'jackson', lat: 32.2988, lon: -90.1848, pop: 153701 }
+      ]},
+      { name: 'Missouri', slug: 'missouri', code: 'MO', cities: [
+        { name: 'Kansas City', slug: 'kansas-city', lat: 39.0997, lon: -94.5786, pop: 495327 },
+        { name: 'St Louis', slug: 'st-louis', lat: 38.6270, lon: -90.1994, pop: 301578 }
+      ]},
+      { name: 'Montana', slug: 'montana', code: 'MT', cities: [
+        { name: 'Billings', slug: 'billings', lat: 45.7833, lon: -108.5007, pop: 117116 }
+      ]},
+      { name: 'Nebraska', slug: 'nebraska', code: 'NE', cities: [
+        { name: 'Omaha', slug: 'omaha', lat: 41.2565, lon: -95.9345, pop: 486051 }
+      ]},
+      { name: 'Nevada', slug: 'nevada', code: 'NV', cities: [
+        { name: 'Las Vegas', slug: 'las-vegas', lat: 36.1699, lon: -115.1398, pop: 641903 },
+        { name: 'Reno', slug: 'reno', lat: 39.5296, lon: -119.8138, pop: 264165 }
+      ]},
+      { name: 'New Hampshire', slug: 'new-hampshire', code: 'NH', cities: [
+        { name: 'Manchester', slug: 'manchester-nh', lat: 42.9956, lon: -71.4548, pop: 115644 }
+      ]},
+      { name: 'New Jersey', slug: 'new-jersey', code: 'NJ', cities: [
+        { name: 'Newark', slug: 'newark', lat: 40.7357, lon: -74.1724, pop: 311549 },
+        { name: 'Jersey City', slug: 'jersey-city', lat: 40.7178, lon: -74.0431, pop: 292449 }
+      ]},
+      { name: 'New Mexico', slug: 'new-mexico', code: 'NM', cities: [
+        { name: 'Albuquerque', slug: 'albuquerque', lat: 35.0844, lon: -106.6504, pop: 564559 }
+      ]},
+      { name: 'New York', slug: 'new-york', code: 'NY', cities: [
+        { name: 'New York City', slug: 'new-york-city', lat: 40.7128, lon: -74.0060, pop: 8336817 },
+        { name: 'Buffalo', slug: 'buffalo', lat: 42.8864, lon: -78.8784, pop: 278349 },
+        { name: 'Rochester', slug: 'rochester', lat: 43.1566, lon: -77.6088, pop: 211328 }
+      ]},
+      { name: 'North Carolina', slug: 'north-carolina', code: 'NC', cities: [
+        { name: 'Charlotte', slug: 'charlotte', lat: 35.2271, lon: -80.8431, pop: 885708 },
+        { name: 'Raleigh', slug: 'raleigh', lat: 35.7796, lon: -78.6382, pop: 474069 },
+        { name: 'Greensboro', slug: 'greensboro', lat: 36.0726, lon: -79.7920, pop: 296710 }
+      ]},
+      { name: 'North Dakota', slug: 'north-dakota', code: 'ND', cities: [
+        { name: 'Fargo', slug: 'fargo', lat: 46.8772, lon: -96.7898, pop: 125990 }
+      ]},
+      { name: 'Ohio', slug: 'ohio', code: 'OH', cities: [
+        { name: 'Columbus', slug: 'columbus', lat: 39.9612, lon: -82.9988, pop: 898553 },
+        { name: 'Cleveland', slug: 'cleveland', lat: 41.4993, lon: -81.6944, pop: 385809 },
+        { name: 'Cincinnati', slug: 'cincinnati', lat: 39.1031, lon: -84.5120, pop: 309317 }
+      ]},
+      { name: 'Oklahoma', slug: 'oklahoma', code: 'OK', cities: [
+        { name: 'Oklahoma City', slug: 'oklahoma-city', lat: 35.4676, lon: -97.5164, pop: 681054 },
+        { name: 'Tulsa', slug: 'tulsa', lat: 36.1540, lon: -95.9928, pop: 413066 }
+      ]},
+      { name: 'Oregon', slug: 'oregon', code: 'OR', cities: [
+        { name: 'Portland', slug: 'portland', lat: 45.5152, lon: -122.6784, pop: 654741 }
+      ]},
+      { name: 'Pennsylvania', slug: 'pennsylvania', code: 'PA', cities: [
+        { name: 'Philadelphia', slug: 'philadelphia', lat: 39.9526, lon: -75.1652, pop: 1584064 },
+        { name: 'Pittsburgh', slug: 'pittsburgh', lat: 40.4406, lon: -79.9959, pop: 302971 }
+      ]},
+      { name: 'Rhode Island', slug: 'rhode-island', code: 'RI', cities: [
+        { name: 'Providence', slug: 'providence', lat: 40.7074, lon: -74.0113, pop: 190934 }
+      ]},
+      { name: 'South Carolina', slug: 'south-carolina', code: 'SC', cities: [
+        { name: 'Charleston', slug: 'charleston', lat: 32.7765, lon: -79.9311, pop: 150227 },
+        { name: 'Columbia', slug: 'columbia-sc', lat: 34.0007, lon: -81.0348, pop: 137300 }
+      ]},
+      { name: 'South Dakota', slug: 'south-dakota', code: 'SD', cities: [
+        { name: 'Sioux Falls', slug: 'sioux-falls', lat: 43.5460, lon: -96.7313, pop: 192517 }
+      ]},
+      { name: 'Tennessee', slug: 'tennessee', code: 'TN', cities: [
+        { name: 'Nashville', slug: 'nashville', lat: 36.1627, lon: -86.7816, pop: 689447 },
+        { name: 'Memphis', slug: 'memphis', lat: 35.1495, lon: -90.0490, pop: 633104 }
+      ]},
+      { name: 'Texas', slug: 'texas', code: 'TX', cities: [
+        { name: 'Houston', slug: 'houston', lat: 29.7604, lon: -95.3698, pop: 2304580 },
+        { name: 'San Antonio', slug: 'san-antonio', lat: 29.4241, lon: -98.4936, pop: 1547253 },
+        { name: 'Dallas', slug: 'dallas', lat: 32.7767, lon: -96.7970, pop: 1304379 },
+        { name: 'Austin', slug: 'austin', lat: 30.2672, lon: -97.7431, pop: 978908 },
+        { name: 'Fort Worth', slug: 'fort-worth', lat: 32.7555, lon: -97.3308, pop: 909585 },
+        { name: 'El Paso', slug: 'el-paso', lat: 31.7619, lon: -106.4850, pop: 681728 }
+      ]},
+      { name: 'Utah', slug: 'utah', code: 'UT', cities: [
+        { name: 'Salt Lake City', slug: 'salt-lake-city', lat: 40.7608, lon: -111.8910, pop: 200567 }
+      ]},
+      { name: 'Vermont', slug: 'vermont', code: 'VT', cities: [
+        { name: 'Burlington', slug: 'burlington', lat: 44.4759, lon: -73.2121, pop: 44743 }
+      ]},
+      { name: 'Virginia', slug: 'virginia', code: 'VA', cities: [
+        { name: 'Virginia Beach', slug: 'virginia-beach', lat: 36.8529, lon: -75.9780, pop: 459470 },
+        { name: 'Norfolk', slug: 'norfolk', lat: 36.8508, lon: -76.2859, pop: 242742 }
+      ]},
+      { name: 'Washington', slug: 'washington', code: 'WA', cities: [
+        { name: 'Seattle', slug: 'seattle', lat: 47.6062, lon: -122.3321, pop: 753675 },
+        { name: 'Spokane', slug: 'spokane', lat: 47.6588, lon: -117.4260, pop: 228989 }
+      ]},
+      { name: 'West Virginia', slug: 'west-virginia', code: 'WV', cities: [
+        { name: 'Charleston', slug: 'charleston-wv', lat: 38.3498, lon: -81.6326, pop: 46536 }
+      ]},
+      { name: 'Wisconsin', slug: 'wisconsin', code: 'WI', cities: [
+        { name: 'Milwaukee', slug: 'milwaukee', lat: 43.0389, lon: -87.9065, pop: 577222 },
+        { name: 'Madison', slug: 'madison', lat: 43.0731, lon: -89.4012, pop: 269840 }
+      ]},
+      { name: 'Wyoming', slug: 'wyoming', code: 'WY', cities: [
+        { name: 'Cheyenne', slug: 'cheyenne', lat: 41.1400, lon: -104.8202, pop: 65132 }
+      ]},
+    ]
+  },
+  'GB': {
+    states: [
+      { name: 'England', slug: 'england', code: null, cities: [
+        { name: 'London', slug: 'london', lat: 51.5074, lon: -0.1278, pop: 8900000 },
+        { name: 'Birmingham', slug: 'birmingham', lat: 52.4862, lon: -1.8904, pop: 1141816 },
+        { name: 'Manchester', slug: 'manchester', lat: 53.4808, lon: -2.2426, pop: 547627 },
+        { name: 'Leeds', slug: 'leeds', lat: 53.8008, lon: -1.5491, pop: 793139 },
+        { name: 'Liverpool', slug: 'liverpool', lat: 53.4084, lon: -2.9916, pop: 494814 },
+        { name: 'Sheffield', slug: 'sheffield', lat: 53.3811, lon: -1.4701, pop: 584028 },
+        { name: 'Bristol', slug: 'bristol', lat: 51.4545, lon: -2.5879, pop: 463377 },
+        { name: 'Newcastle', slug: 'newcastle', lat: 54.9783, lon: -1.6178, pop: 302820 }
+      ]},
+      { name: 'Scotland', slug: 'scotland', code: null, cities: [
+        { name: 'Glasgow', slug: 'glasgow', lat: 55.8642, lon: -4.2518, pop: 635000 },
+        { name: 'Edinburgh', slug: 'edinburgh', lat: 55.9533, lon: -3.1883, pop: 524930 },
+        { name: 'Aberdeen', slug: 'aberdeen', lat: 57.1497, lon: -2.0943, pop: 198590 }
+      ]},
+      { name: 'Wales', slug: 'wales', code: null, cities: [
+        { name: 'Cardiff', slug: 'cardiff', lat: 51.4816, lon: -3.1791, pop: 364248 },
+        { name: 'Swansea', slug: 'swansea', lat: 51.6214, lon: -3.9436, pop: 245508 }
+      ]},
+      { name: 'Northern Ireland', slug: 'northern-ireland', code: null, cities: [
+        { name: 'Belfast', slug: 'belfast', lat: 54.5973, lon: -5.9301, pop: 343542 }
+      ]},
+    ]
+  },
+  'CA': {
+    states: [
+      { name: 'Ontario', slug: 'ontario', code: 'ON', cities: [
+        { name: 'Toronto', slug: 'toronto', lat: 43.6532, lon: -79.3832, pop: 2930000 },
+        { name: 'Ottawa', slug: 'ottawa', lat: 45.4215, lon: -75.6972, pop: 994837 },
+        { name: 'Mississauga', slug: 'mississauga', lat: 43.5890, lon: -79.6441, pop: 721599 },
+        { name: 'Hamilton', slug: 'hamilton', lat: 43.2557, lon: -79.8711, pop: 569353 }
+      ]},
+      { name: 'Quebec', slug: 'quebec', code: 'QC', cities: [
+        { name: 'Montreal', slug: 'montreal', lat: 45.5017, lon: -73.5673, pop: 1762949 },
+        { name: 'Quebec City', slug: 'quebec-city', lat: 46.8139, lon: -71.2080, pop: 531902 }
+      ]},
+      { name: 'British Columbia', slug: 'british-columbia', code: 'BC', cities: [
+        { name: 'Vancouver', slug: 'vancouver', lat: 49.2827, lon: -123.1207, pop: 675218 },
+        { name: 'Victoria', slug: 'victoria', lat: 48.4284, lon: -123.3656, pop: 85792 }
+      ]},
+      { name: 'Alberta', slug: 'alberta', code: 'AB', cities: [
+        { name: 'Calgary', slug: 'calgary', lat: 51.0447, lon: -114.0719, pop: 1239220 },
+        { name: 'Edmonton', slug: 'edmonton', lat: 53.5461, lon: -113.4938, pop: 972223 }
+      ]},
+      { name: 'Manitoba', slug: 'manitoba', code: 'MB', cities: [
+        { name: 'Winnipeg', slug: 'winnipeg', lat: 49.8951, lon: -97.1384, pop: 749534 }
+      ]},
+      { name: 'Saskatchewan', slug: 'saskatchewan', code: 'SK', cities: [
+        { name: 'Regina', slug: 'regina', lat: 50.4452, lon: -104.6189, pop: 226404 }
+      ]},
+    ]
+  },
+  'MX': {
+    states: [
+      { name: 'Jalisco', slug: 'jalisco', code: 'JAL', cities: [
+        { name: 'Guadalajara', slug: 'guadalajara', lat: 20.6597, lon: -103.3496, pop: 1495189 },
+        { name: 'Zapopan', slug: 'zapopan', lat: 20.7214, lon: -103.3918, pop: 1332272 },
+        { name: 'Puerto Vallarta', slug: 'puerto-vallarta', lat: 20.6534, lon: -105.2253, pop: 275640 }
+      ]},
+      { name: 'Nuevo León', slug: 'nuevo-leon', code: 'NL', cities: [
+        { name: 'Monterrey', slug: 'monterrey', lat: 25.6866, lon: -100.3161, pop: 1142952 },
+        { name: 'Guadalupe', slug: 'guadalupe', lat: 25.6767, lon: -100.2597, pop: 678006 }
+      ]},
+      { name: 'Mexico City', slug: 'mexico-city', code: 'CDMX', cities: [
+        { name: 'Mexico City', slug: 'mexico-city-centro', lat: 19.4326, lon: -99.1332, pop: 9209944 }
+      ]},
+      { name: 'Quintana Roo', slug: 'quintana-roo', code: 'QROO', cities: [
+        { name: 'Cancún', slug: 'cancun', lat: 21.1619, lon: -86.8515, pop: 888797 },
+        { name: 'Playa del Carmen', slug: 'playa-del-carmen', lat: 20.6296, lon: -87.0739, pop: 293732 }
+      ]},
+      { name: 'Baja California', slug: 'baja-california', code: 'BC', cities: [
+        { name: 'Tijuana', slug: 'tijuana', lat: 32.5149, lon: -117.0382, pop: 1810645 },
+        { name: 'Mexicali', slug: 'mexicali', lat: 32.6245, lon: -115.4523, pop: 1049792 }
+      ]},
+    ]
+  },
+  'DE': {
+    states: [
+      { name: 'Bavaria', slug: 'bavaria', code: null, cities: [
+        { name: 'Munich', slug: 'munich', lat: 48.1351, lon: 11.5820, pop: 1472000 },
+        { name: 'Nuremberg', slug: 'nuremberg', lat: 49.4521, lon: 11.0767, pop: 518370 }
+      ]},
+      { name: 'Berlin', slug: 'berlin', code: null, cities: [
+        { name: 'Berlin', slug: 'berlin-city', lat: 52.5200, lon: 13.4050, pop: 3645000 }
+      ]},
+      { name: 'Hamburg', slug: 'hamburg', code: null, cities: [
+        { name: 'Hamburg', slug: 'hamburg-city', lat: 53.5511, lon: 9.9937, pop: 1841179 }
+      ]},
+      { name: 'North Rhine-Westphalia', slug: 'north-rhine-westphalia', code: null, cities: [
+        { name: 'Cologne', slug: 'cologne', lat: 50.9375, lon: 6.9603, pop: 1085664 },
+        { name: 'Düsseldorf', slug: 'dusseldorf', lat: 51.2277, lon: 6.7735, pop: 619294 },
+        { name: 'Dortmund', slug: 'dortmund', lat: 51.5136, lon: 7.4653, pop: 587010 }
+      ]},
+    ]
+  },
+  'FR': {
+    states: [
+      { name: 'Île-de-France', slug: 'ile-de-france', code: null, cities: [
+        { name: 'Paris', slug: 'paris', lat: 48.8566, lon: 2.3522, pop: 2161000 }
+      ]},
+      { name: 'Auvergne-Rhône-Alpes', slug: 'auvergne-rhone-alpes', code: null, cities: [
+        { name: 'Lyon', slug: 'lyon', lat: 45.7640, lon: 4.8357, pop: 516092 }
+      ]},
+      { name: 'Provence-Alpes-Côte d\'Azur', slug: 'provence-alpes-cote-azur', code: null, cities: [
+        { name: 'Marseille', slug: 'marseille', lat: 43.2965, lon: 5.3698, pop: 869815 },
+        { name: 'Nice', slug: 'nice', lat: 43.7102, lon: 7.2620, pop: 340017 }
+      ]},
+      { name: 'Occitanie', slug: 'occitanie', code: null, cities: [
+        { name: 'Toulouse', slug: 'toulouse', lat: 43.6047, lon: 1.4442, pop: 479553 }
+      ]},
+    ]
+  },
+  'ES': {
+    states: [
+      { name: 'Catalonia', slug: 'catalonia', code: null, cities: [
+        { name: 'Barcelona', slug: 'barcelona', lat: 41.3851, lon: 2.1734, pop: 1620809 }
+      ]},
+      { name: 'Madrid', slug: 'madrid', code: null, cities: [
+        { name: 'Madrid', slug: 'madrid-city', lat: 40.4168, lon: -3.7038, pop: 3223334 }
+      ]},
+      { name: 'Andalusia', slug: 'andalusia', code: null, cities: [
+        { name: 'Seville', slug: 'seville', lat: 37.3891, lon: -5.9845, pop: 688711 },
+        { name: 'Málaga', slug: 'malaga', lat: 36.7213, lon: -4.4214, pop: 574654 }
+      ]},
+      { name: 'Valencian Community', slug: 'valencian-community', code: null, cities: [
+        { name: 'Valencia', slug: 'valencia', lat: 39.4699, lon: -0.3763, pop: 791413 }
+      ]},
+    ]
+  },
+  'IT': {
+    states: [
+      { name: 'Lazio', slug: 'lazio', code: null, cities: [
+        { name: 'Rome', slug: 'rome', lat: 41.9028, lon: 12.4964, pop: 2872800 }
+      ]},
+      { name: 'Lombardy', slug: 'lombardy', code: null, cities: [
+        { name: 'Milan', slug: 'milan', lat: 45.4642, lon: 9.1900, pop: 1366180 }
+      ]},
+      { name: 'Campania', slug: 'campania', code: null, cities: [
+        { name: 'Naples', slug: 'naples', lat: 40.8518, lon: 14.2681, pop: 967069 }
+      ]},
+      { name: 'Sicily', slug: 'sicily', code: null, cities: [
+        { name: 'Palermo', slug: 'palermo', lat: 38.1157, lon: 13.3615, pop: 674435 }
+      ]},
+      { name: 'Veneto', slug: 'veneto', code: null, cities: [
+        { name: 'Venice', slug: 'venice', lat: 45.4408, lon: 12.3155, pop: 260897 }
+      ]},
+    ]
+  },
+  'BR': {
+    states: [
+      { name: 'São Paulo', slug: 'sao-paulo', code: 'SP', cities: [
+        { name: 'São Paulo', slug: 'sao-paulo-city', lat: -23.5505, lon: -46.6333, pop: 12300000 },
+        { name: 'Guarulhos', slug: 'guarulhos', lat: -23.4538, lon: -46.5333, pop: 1392121 }
+      ]},
+      { name: 'Rio de Janeiro', slug: 'rio-de-janeiro', code: 'RJ', cities: [
+        { name: 'Rio de Janeiro', slug: 'rio-city', lat: -22.9068, lon: -43.1729, pop: 6748000 }
+      ]},
+      { name: 'Minas Gerais', slug: 'minas-gerais', code: 'MG', cities: [
+        { name: 'Belo Horizonte', slug: 'belo-horizonte', lat: -19.9167, lon: -43.9345, pop: 2722000 }
+      ]},
+      { name: 'Bahia', slug: 'bahia', code: 'BA', cities: [
+        { name: 'Salvador', slug: 'salvador', lat: -12.9714, lon: -38.5014, pop: 2886698 }
+      ]},
+    ]
+  },
+  'AU': {
+    states: [
+      { name: 'New South Wales', slug: 'new-south-wales', code: 'NSW', cities: [
+        { name: 'Sydney', slug: 'sydney', lat: -33.8688, lon: 151.2093, pop: 5312000 }
+      ]},
+      { name: 'Victoria', slug: 'victoria', code: 'VIC', cities: [
+        { name: 'Melbourne', slug: 'melbourne', lat: -37.8136, lon: 144.9631, pop: 5078000 }
+      ]},
+      { name: 'Queensland', slug: 'queensland', code: 'QLD', cities: [
+        { name: 'Brisbane', slug: 'brisbane', lat: -27.4698, lon: 153.0251, pop: 2560720 }
+      ]},
+      { name: 'Western Australia', slug: 'western-australia', code: 'WA', cities: [
+        { name: 'Perth', slug: 'perth', lat: -31.9505, lon: 115.8605, pop: 2125114 }
+      ]},
+    ]
+  },
+};
+
+function generateStateContent(stateName, countryName, lang) {
+  if (lang === 'es') return {
+    h1_title: `I.C.O.S ${stateName} - Comunidad Infernalista`,
+    h2_subtitle: `Conéctate con Infernalistas en ${stateName}`,
+    hero_description: `Únete a la comunidad infernalista de ${stateName}. Estudia la biblia infernal y camina por el sendero de Satán.`,
+    about_title: `La Comunidad Infernalista de ${stateName}`,
+    about_content: `I.C.O.S ${stateName} da la bienvenida a buscadores de sabiduría infernal. Reuniones regulares y apoyo comunitario.`,
+    cta_primary_text: 'Únete a infernalsocial.com',
+    feature_1_title: 'Red Regional',
+    feature_1_description: `Capítulos en ${stateName}`,
+    feature_2_title: 'Reuniones Regulares',
+    feature_2_description: 'Grupos de estudio semanales',
+    feature_3_title: 'Apoyo Local',
+    feature_3_description: 'Conéctate con infernalistas locales',
+  };
+  return {
+    h1_title: `I.C.O.S ${stateName} - Infernalist Community`,
+    h2_subtitle: `Connect with Infernalists Across ${stateName}`,
+    hero_description: `Join the ${stateName} infernalist community. Study the infernal bible and walk the path of Satan.`,
+    about_title: `The ${stateName} Infernalist Community`,
+    about_content: `I.C.O.S ${stateName} welcomes seekers of infernal wisdom. Regular gatherings and community support.`,
+    cta_primary_text: 'Join infernalsocial.com',
+    feature_1_title: 'Regional Network',
+    feature_1_description: `Chapters across ${stateName}`,
+    feature_2_title: 'Regular Gatherings',
+    feature_2_description: 'Weekly study groups',
+    feature_3_title: 'Local Support',
+    feature_3_description: 'Connect with local infernalists',
+  };
+}
+
+function generateCityContent(cityName, stateName, lang) {
+  if (lang === 'es') return {
+    h1_title: `I.C.O.S ${cityName} - Capítulo Local`,
+    h2_subtitle: `Conoce Infernalistas en ${cityName}`,
+    hero_description: `El capítulo de ${cityName} ofrece una comunidad para infernalistas locales.`,
+    about_title: `Capítulo Local de I.C.O.S ${cityName}`,
+    about_content: `El capítulo de ${cityName} proporciona reuniones regulares y estudio de la biblia infernal.`,
+    cta_primary_text: 'Únete a infernalsocial.com',
+    feature_1_title: 'Reuniones Locales',
+    feature_1_description: `Encuentros en ${cityName}`,
+    feature_2_title: 'Estudio Bíblico',
+    feature_2_description: 'Grupos semanales',
+    feature_3_title: 'Comunidad Local',
+    feature_3_description: `Infernalistas de ${cityName}`,
+  };
+  return {
+    h1_title: `I.C.O.S ${cityName} - Local Chapter`,
+    h2_subtitle: `Meet Fellow Infernalists in ${cityName}`,
+    hero_description: `The ${cityName} chapter provides a welcoming community for local infernalists.`,
+    about_title: `I.C.O.S ${cityName} Local Chapter`,
+    about_content: `The ${cityName} chapter offers regular gatherings and infernal bible study.`,
+    cta_primary_text: 'Join infernalsocial.com',
+    feature_1_title: 'Local Meetings',
+    feature_1_description: `Gatherings in ${cityName}`,
+    feature_2_title: 'Bible Study',
+    feature_2_description: 'Weekly groups',
+    feature_3_title: 'Local Community',
+    feature_3_description: `${cityName} infernalists`,
+  };
+}
+
+function generateSEO(type, name, parentName, countrySlug, stateSlug, lang) {
+  const baseUrl = 'https://infernalsocial.com';
+  let url = `${baseUrl}/landing/${countrySlug}`;
+  if (stateSlug) url += `/${stateSlug}`;
+  if (type === 'city') url += `/${name.toLowerCase().replace(/\s+/g, '-')}`;
+  const keywords = ['infernal church of satan', 'infernalism', 'infernal bible', 'infernalist', 'satan', 'ICOS', 'I.C.O.S', `I.C.O.S ${name}`];
+  if (lang === 'es') return {
+    meta_title: `I.C.O.S ${name} | Infernalismo`,
+    meta_description: `Comunidad infernalista de ${name}. Estudia la biblia infernal en ${name}.`,
+    meta_keywords: keywords,
+    canonical_url: url,
+    robots: 'index, follow',
+    og_type: 'website',
+    twitter_card: 'summary_large_image',
+  };
+  return {
+    meta_title: `I.C.O.S ${name} | Infernalism`,
+    meta_description: `${name} infernalist community. Study the infernal bible in ${name}.`,
+    meta_keywords: keywords,
+    canonical_url: url,
+    robots: 'index, follow',
+    og_type: 'website',
+    twitter_card: 'summary_large_image',
+  };
+}
+
+async function seedDatabase() {
+  console.log(' COMPLETE PRODUCTION SEED STARTING\n');
+  let totalStates = 0, totalCities = 0, totalContent = 0, totalSEO = 0;
+  for (const [isoCode, countryData] of Object.entries(COMPLETE_DATA)) {
+    const { data: country } = await supabase.from('countries').select('id, name, slug').eq('iso_code', isoCode).single();
+    if (!country) continue;
+    console.log(` ${country.name}`);
+    for (const stateData of countryData.states) {
+      const { data: state } = await supabase.from('states').upsert({
+        country_id: country.id,
+        name: stateData.name,
+        slug: stateData.slug,
+        state_code: stateData.code,
+        is_active: true,
+      }, { onConflict: 'country_id,slug' }).select().single();
+      if (!state) continue;
+      totalStates++;
+      console.log(`   ${stateData.name}`);
+      for (const lang of ['en', 'es']) {
+        await supabase.from('landing_page_content').upsert({
+          location_type: 'state',
+          location_id: state.id,
+          language_code: lang,
+          ...generateStateContent(stateData.name, country.name, lang),
+        }, { onConflict: 'location_type,location_id,language_code' });
+        await supabase.from('landing_seo_metadata').upsert({
+          entity_type: 'state',
+          entity_id: state.id,
+          language_code: lang,
+          ...generateSEO('state', stateData.name, country.name, country.slug, stateData.slug, lang),
+        }, { onConflict: 'entity_type,entity_id,language_code' });
+        totalContent++; totalSEO++;
+      }
+      for (const cityData of stateData.cities) {
+        const { data: city } = await supabase.from('cities').upsert({
+          state_id: state.id,
+          country_id: country.id,
+          name: cityData.name,
+          slug: cityData.slug,
+          latitude: cityData.lat,
+          longitude: cityData.lon,
+          population: cityData.pop,
+          is_active: true,
+        }, { onConflict: 'state_id,slug' }).select().single();
+        if (!city) continue;
+        totalCities++;
+        console.log(`     ${cityData.name}`);
+        for (const lang of ['en', 'es']) {
+          await supabase.from('landing_page_content').upsert({
+            location_type: 'city',
+            location_id: city.id,
+            language_code: lang,
+            ...generateCityContent(cityData.name, stateData.name, lang),
+          }, { onConflict: 'location_type,location_id,language_code' });
+          await supabase.from('landing_seo_metadata').upsert({
+            entity_type: 'city',
+            entity_id: city.id,
+            language_code: lang,
+            ...generateSEO('city', cityData.name, stateData.name, country.slug, stateData.slug, lang),
+          }, { onConflict: 'entity_type,entity_id,language_code' });
+          totalContent++; totalSEO++;
+        }
+      }
+    }
+  }
+  console.log(`\n COMPLETE! States: ${totalStates} | Cities: ${totalCities} | Content: ${totalContent} | SEO: ${totalSEO}`);
+}
+
+seedDatabase().catch(console.error);
+

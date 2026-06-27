@@ -66,7 +66,7 @@ import seal62 from "@/assets/goetia-seals/62-volac.png";
 import seal63 from "@/assets/goetia-seals/63-andras.png";
 import seal64 from "@/assets/goetia-seals/64-haures.png";
 import seal65 from "@/assets/goetia-seals/65-andrealphus.png";
-import seal66 from "@/assets/goetia-seals/66-cimejes.png";
+import seal66 from "@/assets/goetia-seals/66-cimeies.png";
 import seal67 from "@/assets/goetia-seals/67-amdusias.png";
 import seal68 from "@/assets/goetia-seals/68-belial.png";
 import seal69 from "@/assets/goetia-seals/69-decarabia.png";

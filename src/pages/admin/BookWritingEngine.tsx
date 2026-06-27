@@ -53,7 +53,6 @@ export default function BookWritingEngine() {
   const [uploadingPDF, setUploadingPDF] = useState<string | null>(null);
   const [uploadingCover, setUploadingCover] = useState<string | null>(null);
 
-  // New project form
   const [newProject, setNewProject] = useState({
     title: "",
     genre: "fiction",
@@ -67,7 +66,6 @@ export default function BookWritingEngine() {
   const [tableOfContents, setTableOfContents] = useState<Array<{chapterNumber: number, title: string, description: string}>>([]);
   const [generatingTOC, setGeneratingTOC] = useState(false);
 
-  // New character form
   const [newCharacter, setNewCharacter] = useState<Character>({
     name: "",
     background: "",
@@ -96,16 +94,16 @@ export default function BookWritingEngine() {
     if (error) {
       toast({
         title: "Error loading projects",
-        description: error.message,
+        description: error. message,
         variant: "destructive"
       });
     } else if (data) {
-      setProjects(data.map(p => ({ ...p, characters: (p.characters as any) || [] })));
+      setProjects(data. map((p: any) => ({ ...p, characters: Array.isArray(p.characters) ? p.characters : [] })));
     }
     setLoading(false);
   };
 
-  const loadChapters = async (projectId: string) => {
+  const loadChapters = async (projectId:  string) => {
     const { data, error } = await supabase
       .from('book_chapters')
       .select('*')
@@ -115,7 +113,7 @@ export default function BookWritingEngine() {
     if (error) {
       toast({
         title: "Error loading chapters",
-        description: error.message,
+        description:  error.message,
         variant: "destructive"
       });
     } else if (data) {
@@ -152,9 +150,9 @@ export default function BookWritingEngine() {
 
     setPublishing(true);
     const totalWords = chapters.reduce((sum, ch) => sum + ch.word_count, 0);
-    const excerpt = chapters[0]?.content.substring(0, 500) || "";
+    const excerpt = chapters[0]?.content. substring(0, 500) || "";
 
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('occult_library_books')
       .insert({
         book_project_id: selectedProject.id,
@@ -185,7 +183,7 @@ export default function BookWritingEngine() {
   };
 
   const updatePublishedBook = async (bookId: string, updates: any) => {
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('occult_library_books')
       .update(updates)
       .eq('id', bookId);
@@ -211,11 +209,11 @@ export default function BookWritingEngine() {
     if (error) {
       toast({
         title: "Error deleting book",
-        description: error.message,
+        description: error. message,
         variant: "destructive"
       });
     } else {
-      toast({ title: "Book removed from library" });
+      toast({ title:  "Book removed from library" });
       loadPublishedBooks();
     }
   };
@@ -225,13 +223,13 @@ export default function BookWritingEngine() {
     try {
       const filePath = `${bookId}/${file.name}`;
       
-      const { error: uploadError } = await supabase.storage
+      const { error:  uploadError } = await supabase.storage
         .from('book-pdfs')
         .upload(filePath, file, { upsert: true });
 
       if (uploadError) throw uploadError;
 
-      const { error: updateError } = await supabase
+      const { error: updateError } = await (supabase as any)
         .from('occult_library_books')
         .update({ pdf_url: filePath })
         .eq('id', bookId);
@@ -240,17 +238,17 @@ export default function BookWritingEngine() {
 
       toast({ title: "PDF uploaded successfully" });
       loadPublishedBooks();
-    } catch (error: any) {
+    } catch (error:  any) {
       toast({
         title: "Upload failed",
-        description: error.message,
+        description: error. message,
         variant: "destructive"
       });
     }
     setUploadingPDF(null);
   };
 
-  const uploadCover = async (bookId: string, file: File) => {
+  const uploadCover = async (bookId:  string, file: File) => {
     setUploadingCover(bookId);
     try {
       const filePath = `${bookId}/${file.name}`;
@@ -265,7 +263,7 @@ export default function BookWritingEngine() {
         .from('book-covers')
         .getPublicUrl(filePath);
 
-      const { error: updateError } = await supabase
+      const { error: updateError } = await (supabase as any)
         .from('occult_library_books')
         .update({ cover_image_url: publicUrl })
         .eq('id', bookId);
@@ -277,7 +275,7 @@ export default function BookWritingEngine() {
     } catch (error: any) {
       toast({
         title: "Upload failed",
-        description: error.message,
+        description: error. message,
         variant: "destructive"
       });
     }
@@ -294,27 +292,27 @@ export default function BookWritingEngine() {
 
     if (uploadError) {
       toast({
-        title: "Error uploading cover",
-        description: uploadError.message,
+        title:  "Error uploading cover",
+        description:  uploadError.message,
         variant: "destructive"
       });
       return null;
     }
 
-    const { data } = supabase.storage.from('book-covers').getPublicUrl(filePath);
+    const { data } = supabase.storage. from('book-covers').getPublicUrl(filePath);
     return data.publicUrl;
   };
 
-  const handlePDFUpload = async (bookId: string, file: File) => {
+  const handlePDFUpload = async (bookId:  string, file: File) => {
     const filePath = `${bookId}/${file.name}`;
 
     const { error: uploadError } = await supabase.storage
-      .from('book-pdfs')
+      . from('book-pdfs')
       .upload(filePath, file, { upsert: true });
 
     if (uploadError) {
       toast({
-        title: "Error uploading PDF",
+        title:  "Error uploading PDF",
         description: uploadError.message,
         variant: "destructive"
       });
@@ -335,13 +333,13 @@ export default function BookWritingEngine() {
     }
 
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data:  { user } } = await supabase.auth.getUser();
     
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('book_projects')
       .insert({
-        ...newProject,
-        user_id: user?.id,
+        ... newProject,
+        user_id: user?. id,
         characters: []
       })
       .select()
@@ -353,13 +351,13 @@ export default function BookWritingEngine() {
         description: error.message,
         variant: "destructive"
       });
-    } else {
+    } else if (data) {
       toast({ title: "Project created successfully" });
-      const mappedData = { ...data, characters: (data.characters as any) || [] };
+      const mappedData:  BookProject = { ...data, characters: Array.isArray(data.characters) ? data.characters : [] };
       setProjects([mappedData, ...projects]);
       setSelectedProject(mappedData);
       setNewProject({
-        title: "",
+        title:  "",
         genre: "fiction",
         prompt: "",
         setting: "",
@@ -376,9 +374,9 @@ export default function BookWritingEngine() {
 
     const updatedCharacters = [...(selectedProject.characters || []), newCharacter];
     
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('book_projects')
-      .update({ characters: updatedCharacters as any })
+      .update({ characters: updatedCharacters })
       .eq('id', selectedProject.id);
 
     if (error) {
@@ -399,7 +397,7 @@ export default function BookWritingEngine() {
 
     setGeneratingTOC(true);
     try {
-      const { data, error } = await supabase.functions.invoke('ai-generate-chapter', {
+      const { data, error } = await supabase. functions.invoke('ai-generate-chapter', {
         body: {
           genre: selectedProject.genre,
           prompt: selectedProject.prompt,
@@ -422,17 +420,17 @@ export default function BookWritingEngine() {
     setGeneratingTOC(false);
   };
 
-  const generateChapter = async (tocItem?: {chapterNumber: number, title: string, description: string}) => {
+  const generateChapter = async (tocItem?:  {chapterNumber: number, title: string, description: string}) => {
     if (!selectedProject) return;
 
     setGenerating(true);
-    const nextChapterNumber = tocItem?.chapterNumber || chapters.length + 1;
+    const nextChapterNumber = tocItem?. chapterNumber || chapters.length + 1;
     const chapterTitle = tocItem?.title || `Chapter ${nextChapterNumber}`;
 
     try {
       const { data, error } = await supabase.functions.invoke('ai-generate-chapter', {
-        body: {
-          genre: selectedProject.genre,
+        body:  {
+          genre: selectedProject. genre,
           prompt: selectedProject.prompt,
           characters: selectedProject.characters,
           setting: selectedProject.setting,
@@ -447,7 +445,7 @@ export default function BookWritingEngine() {
 
       if (error) throw error;
 
-      const { data: savedChapter, error: saveError } = await supabase
+      const { data: savedChapter, error: saveError } = await (supabase as any)
         .from('book_chapters')
         .insert({
           project_id: selectedProject.id,
@@ -490,7 +488,7 @@ export default function BookWritingEngine() {
 
     setSuggesting(true);
     try {
-      const { data, error } = await supabase.functions.invoke('ai-suggest-edits', {
+      const { data, error } = await supabase. functions.invoke('ai-suggest-edits', {
         body: {
           text: selectedChapter.content,
           type
@@ -503,11 +501,11 @@ export default function BookWritingEngine() {
         title: "Editing Suggestions",
         description: "Check console for detailed suggestions",
       });
-      console.log('AI Suggestions:', data.suggestions);
+      console.log('AI Suggestions:', data. suggestions);
     } catch (error: any) {
       toast({
         title: "Error getting suggestions",
-        description: error.message,
+        description: error. message,
         variant: "destructive"
       });
     }
@@ -517,9 +515,9 @@ export default function BookWritingEngine() {
   const saveChapter = async () => {
     if (!selectedChapter) return;
 
-    const wordCount = selectedChapter.content.trim().split(/\s+/).length;
+    const wordCount = selectedChapter.content. trim().split(/\s+/).length;
 
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('book_chapters')
       .update({
         content: selectedChapter.content,
@@ -530,12 +528,12 @@ export default function BookWritingEngine() {
     if (error) {
       toast({
         title: "Error saving chapter",
-        description: error.message,
+        description: error. message,
         variant: "destructive"
       });
     } else {
-      toast({ title: "Chapter saved successfully" });
-      loadChapters(selectedProject!.id);
+      toast({ title:  "Chapter saved successfully" });
+      loadChapters(selectedProject! .id);
     }
   };
 
@@ -587,8 +585,8 @@ export default function BookWritingEngine() {
                   <Label htmlFor="title">Book Title</Label>
                   <Input
                     id="title"
-                    value={newProject.title}
-                    onChange={(e) => setNewProject({ ...newProject, title: e.target.value })}
+                    value={newProject. title}
+                    onChange={(e) => setNewProject({ ...newProject, title: e. target.value })}
                     placeholder="Enter book title"
                   />
                 </div>
@@ -615,8 +613,8 @@ export default function BookWritingEngine() {
                 <Label htmlFor="prompt">Story Prompt</Label>
                 <Textarea
                   id="prompt"
-                  value={newProject.prompt}
-                  onChange={(e) => setNewProject({ ...newProject, prompt: e.target.value })}
+                  value={newProject. prompt}
+                  onChange={(e) => setNewProject({ ...newProject, prompt: e.target. value })}
                   placeholder="Describe your story idea, plot, themes..."
                   rows={4}
                 />
@@ -696,7 +694,7 @@ export default function BookWritingEngine() {
                       <CardHeader className="p-4">
                         <CardTitle className="text-lg">{project.title}</CardTitle>
                         <CardDescription>
-                          {project.genre} • {project.target_length.toLocaleString()} words target
+                          {project.genre} • {project. target_length. toLocaleString()} words target
                         </CardDescription>
                       </CardHeader>
                     </Card>
@@ -717,7 +715,7 @@ export default function BookWritingEngine() {
               <div className="flex gap-2">
                 <Button
                   onClick={generateTableOfContents}
-                  disabled={generatingTOC || !selectedProject}
+                  disabled={generatingTOC || ! selectedProject}
                 >
                   {generatingTOC ? (
                     <>
@@ -798,7 +796,7 @@ export default function BookWritingEngine() {
                     {chapters.map((chapter) => (
                       <Button
                         key={chapter.id}
-                        variant={selectedChapter?.id === chapter.id ? "default" : "outline"}
+                        variant={selectedChapter?.id === chapter.id ?  "default" : "outline"}
                         className="w-full justify-start"
                         onClick={() => setSelectedChapter(chapter)}
                       >
@@ -845,7 +843,7 @@ export default function BookWritingEngine() {
                 </div>
               </CardHeader>
               <CardContent>
-                {selectedChapter ? (
+                {selectedChapter ?  (
                   <Textarea
                     value={selectedChapter.content}
                     onChange={(e) => setSelectedChapter({ ...selectedChapter, content: e.target.value })}
@@ -917,7 +915,7 @@ export default function BookWritingEngine() {
             <CardContent>
               <ScrollArea className="h-[400px]">
                 <div className="space-y-4">
-                  {selectedProject?.characters?.map((char, i) => (
+                  {selectedProject?.characters?. map((char, i) => (
                     <Card key={i}>
                       <CardHeader>
                         <CardTitle className="text-lg">{char.name}</CardTitle>
@@ -925,7 +923,7 @@ export default function BookWritingEngine() {
                       </CardHeader>
                       <CardContent className="space-y-2 text-sm">
                         <p><strong>Background:</strong> {char.background}</p>
-                        <p><strong>Personality:</strong> {char.personality}</p>
+                        <p><strong>Personality: </strong> {char.personality}</p>
                       </CardContent>
                     </Card>
                   ))}
@@ -949,7 +947,7 @@ export default function BookWritingEngine() {
             <CardContent className="space-y-4">
               {selectedProject && (
                 <div className="p-4 bg-background rounded-lg space-y-3">
-                  <h3 className="font-semibold">Selected Project: {selectedProject.title}</h3>
+                  <h3 className="font-semibold">Selected Project:  {selectedProject.title}</h3>
                   <div className="grid grid-cols-3 gap-4 text-sm">
                     <div>
                       <span className="text-muted-foreground">Chapters:</span>
@@ -972,7 +970,7 @@ export default function BookWritingEngine() {
                     {publishing ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Publishing...
+                        Publishing... 
                       </>
                     ) : (
                       <>
@@ -1004,7 +1002,7 @@ export default function BookWritingEngine() {
                               {book.featured && <Star className="h-4 w-4 fill-crimson text-crimson" />}
                             </CardTitle>
                             <CardDescription>
-                              {book.category} • {book.total_chapters} chapters • {book.total_words.toLocaleString()} words
+                              {book.category} • {book.total_chapters} chapters • {book.total_words. toLocaleString()} words
                             </CardDescription>
                           </div>
                         </div>
@@ -1016,7 +1014,7 @@ export default function BookWritingEngine() {
                             value={book.title}
                             onChange={(e) => {
                               const updated = publishedBooks.map(b => 
-                                b.id === book.id ? { ...b, title: e.target.value } : b
+                                b.id === book.id ? { ...b, title: e.target.value } :  b
                               );
                               setPublishedBooks(updated);
                             }}
@@ -1027,7 +1025,7 @@ export default function BookWritingEngine() {
                         <div>
                           <Label>Description</Label>
                           <Textarea
-                            value={book.description || ''}
+                            value={book. description || ''}
                             onChange={(e) => {
                               const updated = publishedBooks.map(b => 
                                 b.id === book.id ? { ...b, description: e.target.value } : b
@@ -1063,7 +1061,7 @@ export default function BookWritingEngine() {
                               step="0.01"
                               value={(book.price_cents / 100).toFixed(2)}
                               onChange={(e) => {
-                                const cents = Math.round(parseFloat(e.target.value) * 100);
+                                const cents = Math.round(parseFloat(e. target.value) * 100);
                                 const updated = publishedBooks.map(b => 
                                   b.id === book.id ? { ...b, price_cents: cents } : b
                                 );
@@ -1126,7 +1124,7 @@ export default function BookWritingEngine() {
                             value={book.amazon_url || ''}
                             onChange={(e) => {
                               const updated = publishedBooks.map(b => 
-                                b.id === book.id ? { ...b, amazon_url: e.target.value } : b
+                                b. id === book.id ? { ... b, amazon_url: e. target.value } : b
                               );
                               setPublishedBooks(updated);
                             }}
@@ -1153,7 +1151,7 @@ export default function BookWritingEngine() {
                         <div>
                           <Label>Tags (comma separated)</Label>
                           <Input
-                            value={book.tags?.join(', ') || ''}
+                            value={book.tags?. join(', ') || ''}
                             onChange={(e) => {
                               const tags = e.target.value.split(',').map(t => t.trim()).filter(Boolean);
                               const updated = publishedBooks.map(b => 
@@ -1173,7 +1171,7 @@ export default function BookWritingEngine() {
                             onClick={() => updatePublishedBook(book.id, { featured: !book.featured })}
                             className={book.featured ? "bg-crimson hover:bg-crimson/80" : ""}
                           >
-                            <Star className={`w-4 h-4 mr-1 ${book.featured ? 'fill-current' : ''}`} />
+                            <Star className={`w-4 h-4 mr-1 ${book.featured ?  'fill-current' : ''}`} />
                             {book.featured ? 'Featured' : 'Feature'}
                           </Button>
                           <Button

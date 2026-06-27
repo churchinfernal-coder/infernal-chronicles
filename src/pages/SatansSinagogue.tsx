@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { VideoUpload } from "@/components/VideoUpload";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { 
+import {
   RefreshCw, Heart, Brain, Share2, UserPlus, UserMinus, Swords, Skull, Cross, Bug,
   Volume2, VolumeX, Trash2, MoreVertical, TrendingUp, Bell, BellOff, Flame, Crown
 } from "lucide-react";
@@ -29,11 +29,12 @@ interface VideoPost {
   id: string;
   content: string;
   media_url: string;
+  post_section: string;
   created_at: string;
   user_id: string;
   profiles?: {
     username: string | null;
-    avatar_url: string | null;
+    avatar_url:  string | null;
   };
 }
 
@@ -57,10 +58,10 @@ interface TrendingUser {
 interface Notification {
   id: string;
   creator_id: string;
-  video_id: string;
+  video_id:  string;
   read: boolean;
   created_at: string;
-  creator?: {
+  creator?:  {
     username: string;
     avatar_url: string | null;
   };
@@ -119,49 +120,71 @@ export default function SatansSinagogue() {
   const { t } = useLanguage();
 
   useEffect(() => {
-    checkAuth();
-    fetchVideos(0);
-    fetchTrending();
-    subscribeToNotifications();
+    const initializePage = async () => {
+      await checkAuth();
+      await fetchVideos(0);
+      await fetchTrending();
+    };
+    initializePage();
+
+    const unsubscribe = subscribeToNotifications();
+    return () => {
+      unsubscribe?. ();
+    };
   }, []);
 
   const checkAuth = async () => {
-    const { data: { user } } = await supabase. auth.getUser();
-    if (! user) {
+    try {
+      const { data: { user }, error } = await supabase. auth.getUser();
+      if (error || !user) {
+        navigate("/auth");
+        return;
+      }
+      setCurrentUserId(user. id);
+      await fetchNotifications(user.id);
+    } catch (error) {
+      console.error("Auth check error:", error);
       navigate("/auth");
-    } else {
-      setCurrentUserId(user.id);
-      fetchNotifications(user.id);
     }
   };
 
   const fetchNotifications = async (userId: string) => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("video_notifications")
         .select("id, creator_id, video_id, read, created_at")
-        . eq("user_id", userId)
-        . order("created_at", { ascending: false })
+        .eq("user_id", userId)
+        .order("created_at", { ascending:  false })
         .limit(20);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Notifications fetch error:", error);
+        setNotifications([]);
+        setUnreadCount(0);
+        return;
+      }
 
-      const creatorIds = (data || []). map((n: any) => n.creator_id);
-      
+      const creatorIds = (data || []).map((n: any) => n.creator_id).filter(Boolean);
+
       if (creatorIds.length === 0) {
         setNotifications([]);
         setUnreadCount(0);
         return;
       }
 
-      const { data: profilesData } = await supabase
+      const { data: profilesData, error: profilesError } = await (supabase as any)
         .from("profiles")
         .select("user_id, username, avatar_url")
-        . in("user_id", creatorIds);
+        .in("user_id", creatorIds);
+
+      if (profilesError) {
+        console.error("Profiles fetch error:", profilesError);
+        throw profilesError;
+      }
 
       const profiles = (profilesData || []) as ProfileData[];
 
-      const notificationsWithProfiles: Notification[] = (data || []).map((n: any) => {
+      const notificationsWithProfiles:  Notification[] = (data || []).map((n: any) => {
         const creator = profiles.find((p) => p.user_id === n.creator_id);
         return {
           id: n.id,
@@ -169,16 +192,18 @@ export default function SatansSinagogue() {
           video_id: n.video_id,
           read: Boolean(n.read),
           created_at: n.created_at,
-          creator: creator ? {
-            username: creator.username || "Unknown",
-            avatar_url: creator.avatar_url || null
-          } : undefined
+          creator: creator
+            ? {
+                username: creator. username || "Unknown",
+                avatar_url:  creator.avatar_url || null
+              }
+            : undefined
         };
       });
 
       setNotifications(notificationsWithProfiles);
-      setUnreadCount(notificationsWithProfiles.filter((n) => !n.read). length);
-    } catch (error: any) {
+      setUnreadCount(notificationsWithProfiles. filter((n) => !n.read).length);
+    } catch (error:  any) {
       console.error("Error fetching notifications:", error);
       setNotifications([]);
       setUnreadCount(0);
@@ -186,94 +211,107 @@ export default function SatansSinagogue() {
   };
 
   const subscribeToNotifications = () => {
-    if (! currentUserId) return;
+    if (! currentUserId) return () => {};
 
-    const channel = supabase
-      .channel('video_notifications_realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'video_notifications',
-          filter: `user_id=eq.${currentUserId}`
-        },
-        (payload) => {
-          console.log('🔔 New notification:', payload);
-          if (currentUserId) {
-            fetchNotifications(currentUserId);
-            toast.success("New video from someone you follow!");
+    try {
+      const channel = supabase
+        .channel('video_notifications_realtime')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'video_notifications',
+            filter: `user_id=eq.${currentUserId}`
+          },
+          (payload) => {
+            console.log('🔔 New notification:', payload);
+            if (currentUserId) {
+              fetchNotifications(currentUserId);
+              toast.success("New video from someone you follow!");
+            }
           }
-        }
-      )
-      .subscribe();
+        )
+        .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    } catch (error) {
+      console.error("Subscription error:", error);
+      return () => {};
+    }
   };
 
   const markNotificationAsRead = async (notificationId: string) => {
-  try {
-    const { error } = await (supabase as any)
-      .from("video_notifications")
-      .update({ read: true })
-      .eq("id", notificationId);
+    try {
+      const { error } = await (supabase as any)
+        .from("video_notifications")
+        .update({ read: true })
+        .eq("id", notificationId);
 
-    if (error) {
-      console.error("Error updating notification:", error);
-      return;
+      if (error) {
+        console.error("Error updating notification:", error);
+        return;
+      }
+
+      setNotifications(prev =>
+        prev.map(n => {
+          if (n.id === notificationId) {
+            return { ...n, read: true };
+          }
+          return n;
+        })
+      );
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (error:  any) {
+      console.error("Error marking notification as read:", error);
     }
-
-    setNotifications(prev =>
-      prev.map(n => {
-        if (n.id === notificationId) {
-          return { ... n, read: true };
-        }
-        return n;
-      })
-    );
-    setUnreadCount(prev => Math.max(0, prev - 1));
-  } catch (error: any) {
-    console.error("Error marking notification as read:", error);
-  }
-};
+  };
 
   const fetchTrending = async () => {
     try {
-      await supabase.rpc('update_trending_scores');
+      await (supabase as any).rpc('update_trending_scores');
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("trending_scores")
         .select("user_id, score, video_count, total_likes")
         .order("score", { ascending: false })
         .limit(10);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Trending fetch error:", error);
+        throw error;
+      }
 
-      const userIds = (data || []).map((t: any) => t.user_id);
-      
+      const userIds = (data || []).map((t: any) => t.user_id).filter(Boolean);
+
       if (userIds.length === 0) {
         setTrendingUsers([]);
         return;
       }
 
-      const { data: profilesData } = await supabase
+      const { data: profilesData, error: profilesError } = await (supabase as any)
         .from("profiles")
         .select("user_id, username, avatar_url")
         .in("user_id", userIds);
 
+      if (profilesError) {
+        console.error("Profiles fetch error:", profilesError);
+        throw profilesError;
+      }
+
       const profiles = (profilesData || []) as ProfileData[];
 
       const trendingWithProfiles: TrendingUser[] = (data || []).map((t: any) => {
-        const profile = profiles. find((p) => p.user_id === t.user_id);
+        const profile = profiles.find((p) => p.user_id === t.user_id);
         return {
-          user_id: t.user_id,
+          user_id:  t.user_id,
           score: t.score || 0,
           video_count: t.video_count || 0,
-          total_likes: t.total_likes || 0,
+          total_likes:  t.total_likes || 0,
           username: profile?.username || "Unknown",
-          avatar_url: profile?.avatar_url || null
+          avatar_url: profile?. avatar_url || null
         };
       });
 
@@ -296,53 +334,87 @@ export default function SatansSinagogue() {
       const from = pageNum * VIDEOS_PER_PAGE;
       const to = from + VIDEOS_PER_PAGE - 1;
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("posts")
-        .select("id, content, media_url, created_at, user_id")
+        .select("id, content, media_url, post_section, created_at, user_id")
         .eq("media_type", "video")
-        .order("created_at", { ascending: false })
+        .eq("post_section", "sinagogue")
+        .order("created_at", { ascending:  false })
         .range(from, to);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Videos fetch error:", error);
+        throw error;
+      }
 
       if (! data || data.length < VIDEOS_PER_PAGE) {
         setHasMore(false);
       }
 
-      const userIds = (data || []).map((p: any) => p.user_id). filter(Boolean);
-      const { data: profilesData } = await supabase
+      const userIds = (data || [])
+        .map((p: any) => p.user_id)
+        .filter(Boolean);
+
+      if (userIds. length === 0) {
+        if (isInitial) {
+          setVideos([]);
+        }
+        setLoading(false);
+        setLoadingMore(false);
+        return;
+      }
+
+      const { data: profilesData, error: profilesError } = await (supabase as any)
         .from("profiles")
         .select("user_id, username, avatar_url")
         .in("user_id", userIds);
 
-      const videosWithProfiles: VideoPost[] = (data || []).map((post: any) => ({
+      if (profilesError) {
+        console.error("Profiles fetch error:", profilesError);
+        throw profilesError;
+      }
+
+      const videosWithProfiles:  VideoPost[] = (data || []).map((post: any) => ({
         id: post.id,
         content: post.content,
         media_url: post. media_url,
-        created_at: post.created_at,
-        user_id: post. user_id,
-        profiles: profilesData?. find((p: any) => p. user_id === post.user_id)
+        post_section: post.post_section,
+        created_at: post. created_at,
+        user_id: post.user_id,
+        profiles: profilesData?. find((p: any) => p.user_id === post.user_id)
       }));
 
       const postIds = (data || []).map((p: any) => p.id);
 
-      const { data: friendshipData } = await supabase
+      // Fetch disciple counts
+      const { data:  friendshipData, error: friendshipError } = await (supabase as any)
         .from("friendships")
         .select("friend_id")
         .in("friend_id", userIds)
         .eq("status", "accepted");
 
+      if (friendshipError) {
+        console.error("Friendships fetch error:", friendshipError);
+        throw friendshipError;
+      }
+
       const counts: Record<string, number> = {};
       userIds.forEach((userId: string) => {
-        counts[userId] = friendshipData?. filter((f: any) => f.friend_id === userId).length || 0;
+        counts[userId] = friendshipData?.filter((f: any) => f.friend_id === userId).length || 0;
       });
       setDiscipleCounts(prev => ({ ...prev, ...counts }));
 
-      const { data: reactionsData } = await supabase
+      // Fetch like counts
+      const { data: reactionsData, error: reactionsError } = await (supabase as any)
         .from("post_reactions")
         .select("post_id")
         .in("post_id", postIds)
         .eq("reaction_type", "like");
+
+      if (reactionsError) {
+        console.error("Reactions fetch error:", reactionsError);
+        throw reactionsError;
+      }
 
       const likes: Record<string, number> = {};
       postIds.forEach((postId: string) => {
@@ -350,44 +422,57 @@ export default function SatansSinagogue() {
       });
       setLikeCounts(prev => ({ ...prev, ...likes }));
 
-      const { data: commentsData } = await supabase
+      // Fetch comment counts
+      const { data: commentsData, error: commentsError } = await (supabase as any)
         .from("post_comments")
         .select("post_id")
         .in("post_id", postIds);
 
+      if (commentsError) {
+        console.error("Comments fetch error:", commentsError);
+        throw commentsError;
+      }
+
       const commentsCount: Record<string, number> = {};
-      postIds. forEach((postId: string) => {
-        commentsCount[postId] = commentsData?.filter((c: any) => c. post_id === postId).length || 0;
+      postIds.forEach((postId: string) => {
+        commentsCount[postId] = commentsData?.filter((c: any) => c.post_id === postId).length || 0;
       });
       setCommentCounts(prev => ({ ...prev, ...commentsCount }));
 
+      // Fetch follow status for current user
       if (currentUserId) {
-        const { data: followData } = await supabase
+        const { data: followData, error: followError } = await (supabase as any)
           .from("friendships")
           .select("friend_id")
           .eq("user_id", currentUserId)
           .in("friend_id", userIds)
           .eq("status", "accepted");
 
-        const following: Record<string, boolean> = {};
+        if (followError) {
+          console.error("Follow status fetch error:", followError);
+          throw followError;
+        }
+
+        const following:  Record<string, boolean> = {};
         userIds.forEach((userId: string) => {
-          following[userId] = followData?.some((f: any) => f. friend_id === userId) || false;
+          following[userId] = followData?.some((f: any) => f.friend_id === userId) || false;
         });
         setIsFollowing(prev => ({ ...prev, ...following }));
       }
 
       if (isInitial) {
         setVideos(videosWithProfiles);
-        const mutedState: Record<number, boolean> = {};
+        const mutedState:  Record<number, boolean> = {};
         videosWithProfiles.forEach((_, index) => {
           mutedState[index] = false;
         });
         setVideoMuted(mutedState);
       } else {
-        setVideos(prev => [...prev, ... videosWithProfiles]);
+        setVideos(prev => [...prev, ...videosWithProfiles]);
       }
     } catch (error: any) {
-      toast.error(error.message);
+      console.error("Error fetching videos:", error);
+      toast.error(error.message || "Failed to load videos");
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -395,30 +480,31 @@ export default function SatansSinagogue() {
   };
 
   const loadMore = useCallback(() => {
-    if (! loadingMore && hasMore) {
+    if (!loadingMore && hasMore) {
       const nextPage = page + 1;
       setPage(nextPage);
       fetchVideos(nextPage);
     }
   }, [page, loadingMore, hasMore]);
 
+  // Scroll to video by URL param
   useEffect(() => {
     if (videos.length === 0) return;
-    
-    const urlParams = new URLSearchParams(window. location.search);
+
+    const urlParams = new URLSearchParams(window.location.search);
     const videoId = urlParams.get('v');
-    
+
     if (videoId && containerRef.current) {
       const videoIndex = videos.findIndex(v => v.id === videoId);
-      
+
       if (videoIndex !== -1) {
         setTimeout(() => {
-          const videoElement = containerRef.current?.children[videoIndex] as HTMLElement;
+          const videoElement = containerRef.current?. children[videoIndex] as HTMLElement;
           if (videoElement) {
             videoElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
             const video = videoRefs.current[videoIndex];
             if (video) {
-              video.play(). catch(() => {});
+              video.play().catch(() => {});
             }
           }
         }, 100);
@@ -428,6 +514,7 @@ export default function SatansSinagogue() {
     }
   }, [videos]);
 
+  // Infinite scroll observer for last video
   useEffect(() => {
     if (! containerRef.current || videos.length === 0) return;
 
@@ -450,9 +537,10 @@ export default function SatansSinagogue() {
     return () => observer.disconnect();
   }, [videos, hasMore, loadingMore, loadMore]);
 
+  // Auto-play/pause observers for videos
   useEffect(() => {
-    observerRefs.current.forEach(obs => obs?.disconnect());
-    observerRefs. current = [];
+    observerRefs.current. forEach(obs => obs?. disconnect());
+    observerRefs.current = [];
 
     videos.forEach((_, index) => {
       const videoElement = videoRefs.current[index];
@@ -464,7 +552,7 @@ export default function SatansSinagogue() {
             if (entry.isIntersecting) {
               videoElement.play().catch(() => {});
             } else {
-              videoElement. pause();
+              videoElement.pause();
             }
           });
         },
@@ -483,9 +571,9 @@ export default function SatansSinagogue() {
   const toggleMute = (index: number) => {
     const video = videoRefs.current[index];
     if (video) {
-      video.muted = ! video.muted;
-      setVideoMuted(prev => ({ ...prev, [index]: video.muted }));
-      
+      video.muted = !video.muted;
+      setVideoMuted(prev => ({ ...prev, [index]: video. muted }));
+
       if ('vibrate' in navigator) {
         navigator.vibrate(10);
       }
@@ -496,33 +584,40 @@ export default function SatansSinagogue() {
     if (! videoToDelete) return;
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("posts")
         .delete()
         .eq("id", videoToDelete);
 
       if (error) throw error;
 
-      setVideos(prev => prev.filter(v => v.id !== videoToDelete));
+      setVideos(prev => prev.filter(v => v. id !== videoToDelete));
       toast.success("Video deleted successfully");
       setDeleteDialogOpen(false);
       setVideoToDelete(null);
     } catch (error: any) {
-      toast.error(error.message);
+      console.error("Delete error:", error);
+      toast.error(error.message || "Failed to delete video");
     }
   };
 
   const fetchPostComments = async (postId: string) => {
     try {
-      const { data, error } = await supabase
-        . from("post_comments")
+      const { data, error } = await (supabase as any)
+        .from("post_comments")
         .select("id, content, created_at, user_id")
         .eq("post_id", postId)
-        .order("created_at", { ascending: true });
-      if (error) throw error;
+        .order("created_at", { ascending:  true });
+
+      if (error) {
+        console.error("Comments fetch error:", error);
+        throw error;
+      }
+
       setComments((data as any) || []);
-    } catch (e: any) {
-      toast.error(e.message);
+    } catch (e:  any) {
+      console.error("Error fetching comments:", e);
+      toast.error(e.message || "Failed to load comments");
     }
   };
 
@@ -535,14 +630,20 @@ export default function SatansSinagogue() {
   const addComment = async () => {
     try {
       if (!newComment.trim() || !activePostId) return;
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+
+      const { data:  { user }, error:  authError } = await supabase. auth.getUser();
+      if (authError || !user) throw new Error("Not authenticated");
 
       const { data, error } = await (supabase as any)
         .from("post_comments")
-        .insert({ post_id: activePostId, user_id: user.id, content: newComment. trim() })
+        .insert({
+          post_id: activePostId,
+          user_id: user.id,
+          content: newComment. trim()
+        })
         .select("id, content, created_at, user_id")
         .single();
+
       if (error) throw error;
 
       if (data) {
@@ -554,46 +655,48 @@ export default function SatansSinagogue() {
         [activePostId]: (prev[activePostId] || 0) + 1,
       }));
     } catch (e: any) {
-      toast. error(e.message);
+      console.error("Comment error:", e);
+      toast.error(e.message || "Failed to post comment");
     }
   };
 
   const handleLike = async (videoId: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      const { data:  { user }, error: authError } = await supabase. auth.getUser();
+      if (authError || !user) throw new Error("Not authenticated");
 
-      const { error } = await (supabase as any). from("post_reactions"). insert({
+      const { error } = await (supabase as any).from("post_reactions").insert({
         post_id: videoId,
         user_id: user.id,
         reaction_type: "like",
       });
 
       if (error) throw error;
-      
+
       setLikeCounts(prev => ({
         ...prev,
         [videoId]: (prev[videoId] || 0) + 1
       }));
-      
+
       if ('vibrate' in navigator) {
         navigator.vibrate([10, 5, 10]);
       }
-      
+
       toast.success("Liked");
     } catch (error: any) {
+      console.error("Like error:", error);
       if (error.message. includes("duplicate")) {
         toast.error("Already liked");
       } else {
-        toast.error(error.message);
+        toast.error(error.message || "Failed to like");
       }
     }
   };
 
   const handleReaction = async (videoId: string, reactionType: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      const { data: { user }, error: authError } = await supabase. auth.getUser();
+      if (authError || !user) throw new Error("Not authenticated");
 
       const { error } = await (supabase as any).from("post_reactions").insert({
         post_id: videoId,
@@ -608,17 +711,18 @@ export default function SatansSinagogue() {
       if (reactionType === "666") {
         setShowInfernalReaction(true);
       }
-      
+
       if ('vibrate' in navigator) {
         navigator.vibrate(20);
       }
-      
-      toast.success(`Reacted with ${reactionType}`);
+
+      toast. success(`Reacted with ${reactionType}`);
     } catch (error: any) {
-      if (error.message. includes("duplicate")) {
+      console.error("Reaction error:", error);
+      if (error.message.includes("duplicate")) {
         toast.error("Already reacted");
       } else {
-        toast. error(error.message);
+        toast.error(error. message || "Failed to react");
       }
     }
   };
@@ -630,7 +734,7 @@ export default function SatansSinagogue() {
       const isCurrentlyFollowing = isFollowing[userId];
 
       if (isCurrentlyFollowing) {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from("friendships")
           .delete()
           .eq("user_id", currentUserId)
@@ -648,9 +752,9 @@ export default function SatansSinagogue() {
         const { error } = await (supabase as any)
           .from("friendships")
           .insert({
-            user_id: currentUserId,
+            user_id:  currentUserId,
             friend_id: userId,
-            status: "accepted"
+            status:  "accepted"
           });
 
         if (error) throw error;
@@ -660,15 +764,16 @@ export default function SatansSinagogue() {
           ...prev,
           [userId]: (prev[userId] || 0) + 1
         }));
-        
+
         if ('vibrate' in navigator) {
           navigator.vibrate([15, 10, 15]);
         }
-        
+
         toast.success("Following!  You'll be notified of new videos");
       }
     } catch (error: any) {
-      toast.error(error.message);
+      console.error("Follow error:", error);
+      toast.error(error.message || "Failed to update follow status");
     }
   };
 
@@ -728,7 +833,7 @@ export default function SatansSinagogue() {
         <Flame className="h-5 w-5 text-white" />
       </button>
 
-      {videos.length === 0 ?  (
+      {videos.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-screen px-4">
           <p className="text-muted-foreground text-xl mb-6 text-center">{t("reels.noVideos")}</p>
           <VideoUpload onUploadComplete={() => fetchVideos(0)} />
@@ -742,8 +847,10 @@ export default function SatansSinagogue() {
             >
               <div className="relative w-full max-w-lg h-full group">
                 <video
-                  ref={(el) => { videoRefs.current[index] = el; }}
-                  src={video.media_url}
+                  ref={(el) => {
+                    videoRefs.current[index] = el;
+                  }}
+                  src={video. media_url}
                   className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
                   loop
                   muted={videoMuted[index] === true}
@@ -758,11 +865,11 @@ export default function SatansSinagogue() {
                 />
 
                 <div className="absolute top-4 right-4 z-20 pointer-events-none">
-                  <img 
-                    src={infernalWatermark} 
-                    alt="Infernal watermark" 
+                  <img
+                    src={infernalWatermark}
+                    alt="Infernal watermark"
                     className="h-12 sm:h-16 md:h-20 w-auto opacity-90"
-                    style={{ 
+                    style={{
                       filter: 'brightness(1.3) contrast(1.4) drop-shadow(0 4px 12px rgba(0,0,0,0.9))'
                     }}
                   />
@@ -804,7 +911,7 @@ export default function SatansSinagogue() {
                   </DropdownMenu>
                 )}
 
-                <div className="absolute inset-0 hidden [&:has(~video[style*='display:_none'])]:flex flex-col items-center justify-center bg-muted/20 backdrop-blur-sm px-4">
+                <div className="absolute inset-0 hidden [&:has(~video[style*='display: _none'])]:flex flex-col items-center justify-center bg-muted/20 backdrop-blur-sm px-4">
                   <p className="text-lg text-muted-foreground mb-4 text-center">{t("reels.ritualInterrupted")}</p>
                   <Button
                     onClick={() => retryVideo(index)}
@@ -819,10 +926,10 @@ export default function SatansSinagogue() {
 
                 <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none bg-gradient-to-t from-black/60 via-transparent to-transparent" />
 
-                <div 
+                <div
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (video.profiles?. username) {
+                    if (video.profiles?.username) {
                       navigate(`/studio/${video.profiles.username}`);
                     }
                   }}
@@ -831,7 +938,7 @@ export default function SatansSinagogue() {
                   <Avatar className="h-12 w-12 border-2 border-white/20">
                     <AvatarImage src={video.profiles?.avatar_url || ""} />
                     <AvatarFallback className="bg-primary/20 text-primary text-lg">
-                      {video.profiles?.username ?  video.profiles.username. charAt(0). toUpperCase() : "U"}
+                      {video.profiles?.username ?  video.profiles.username. charAt(0).toUpperCase() : "U"}
                     </AvatarFallback>
                   </Avatar>
                   <div>
@@ -842,7 +949,7 @@ export default function SatansSinagogue() {
                       {discipleCounts[video.user_id] || 0} Disciples
                     </div>
                   </div>
-                  
+
                   {video.user_id !== currentUserId && (
                     <button
                       onClick={(e) => {
@@ -856,9 +963,15 @@ export default function SatansSinagogue() {
                       }`}
                     >
                       {isFollowing[video.user_id] ? (
-                        <><UserMinus className="h-4 w-4 inline mr-1" />Following</>
+                        <>
+                          <UserMinus className="h-4 w-4 inline mr-1" />
+                          Following
+                        </>
                       ) : (
-                        <><UserPlus className="h-4 w-4 inline mr-1" />Follow</>
+                        <>
+                          <UserPlus className="h-4 w-4 inline mr-1" />
+                          Follow
+                        </>
                       )}
                     </button>
                   )}
@@ -866,7 +979,7 @@ export default function SatansSinagogue() {
 
                 <div className="absolute bottom-32 right-4 flex flex-col gap-5 z-10">
                   <div className="flex flex-col items-center gap-1">
-                    <button 
+                    <button
                       onClick={() => handleLike(video.id)}
                       className="p-3 rounded-full bg-background/20 backdrop-blur-md border border-white/10 hover:bg-background/30 hover:scale-110 transition-all duration-200 active:scale-95 shadow-lg"
                     >
@@ -878,9 +991,9 @@ export default function SatansSinagogue() {
                   </div>
 
                   <div className="flex flex-col items-center gap-1">
-                    <Popover open={reactionPickerOpen[video.id]} onOpenChange={(open) => setReactionPickerOpen(prev => ({ ...prev, [video.id]: open }))}>
+                    <Popover open={reactionPickerOpen[video.id]} onOpenChange={(open) => setReactionPickerOpen(prev => ({ ...prev, [video. id]: open }))}>
                       <PopoverTrigger asChild>
-                        <button 
+                        <button
                           className="p-3 rounded-full bg-background/20 backdrop-blur-md border border-white/10 hover:bg-background/30 hover:scale-110 transition-all duration-200 active:scale-95 shadow-lg"
                         >
                           <Brain className="h-6 w-6 text-white drop-shadow-lg" />
@@ -888,20 +1001,20 @@ export default function SatansSinagogue() {
                       </PopoverTrigger>
                       <PopoverContent side="left" className="w-auto p-2 bg-background/95 backdrop-blur-md border-primary/30">
                         <div className="grid grid-cols-4 gap-2">
-                          <button onClick={() => handleReaction(video. id, "knife")} className="p-2 hover:bg-primary/20 rounded-lg transition-all hover:scale-110 text-2xl" title="Knife">🔪</button>
-                          <button onClick={() => handleReaction(video.id, "sword")} className="p-2 hover:bg-primary/20 rounded-lg transition-all hover:scale-110" title="Sword"><Swords className="h-6 w-6 text-foreground" /></button>
-                          <button onClick={() => handleReaction(video.id, "666")} className="p-2 hover:bg-primary/20 rounded-lg transition-all hover:scale-110 text-2xl font-black text-primary" style={{ fontFamily: "'Cinzel', serif" }} title="666">666</button>
-                          <button onClick={() => handleReaction(video.id, "skull")} className="p-2 hover:bg-primary/20 rounded-lg transition-all hover:scale-110" title="Skull"><Skull className="h-6 w-6 text-foreground" /></button>
+                          <button onClick={() => handleReaction(video.id, "knife")} className="p-2 hover:bg-primary/20 rounded-lg transition-all hover:scale-110 text-2xl" title="Knife">🔪</button>
+                          <button onClick={() => handleReaction(video.id, "sword")} className="p-2 hover:bg-primary/20 rounded-lg transition-all hover: scale-110" title="Sword"><Swords className="h-6 w-6 text-foreground" /></button>
+                          <button onClick={() => handleReaction(video.id, "666")} className="p-2 hover:bg-primary/20 rounded-lg transition-all hover: scale-110 text-2xl font-black text-primary" style={{ fontFamily: "'Cinzel', serif" }} title="666">666</button>
+                          <button onClick={() => handleReaction(video.id, "skull")} className="p-2 hover:bg-primary/20 rounded-lg transition-all hover: scale-110" title="Skull"><Skull className="h-6 w-6 text-foreground" /></button>
                           <button onClick={() => handleReaction(video.id, "crossbones")} className="p-2 hover:bg-primary/20 rounded-lg transition-all hover:scale-110 text-2xl" title="Skull & Crossbones">☠️</button>
                           <button onClick={() => handleReaction(video.id, "casket")} className="p-2 hover:bg-primary/20 rounded-lg transition-all hover:scale-110 text-2xl" title="Casket">⚰️</button>
-                          <button onClick={() => handleReaction(video.id, "spider")} className="p-2 hover:bg-primary/20 rounded-lg transition-all hover:scale-110" title="Spider"><Bug className="h-6 w-6 text-foreground" /></button>
-                          <button onClick={() => handleReaction(video. id, "cross")} className="p-2 hover:bg-primary/20 rounded-lg transition-all hover:scale-110" title="Cross"><Cross className="h-6 w-6 text-foreground" /></button>
+                          <button onClick={() => handleReaction(video.id, "spider")} className="p-2 hover:bg-primary/20 rounded-lg transition-all hover: scale-110" title="Spider"><Bug className="h-6 w-6 text-foreground" /></button>
+                          <button onClick={() => handleReaction(video. id, "cross")} className="p-2 hover:bg-primary/20 rounded-lg transition-all hover: scale-110" title="Cross"><Cross className="h-6 w-6 text-foreground" /></button>
                         </div>
                         <div className="mt-2 pt-2 border-t border-border">
-                          <button 
+                          <button
                             onClick={() => {
                               openComments(video.id);
-                              setReactionPickerOpen(prev => ({ ...prev, [video.id]: false }));
+                              setReactionPickerOpen(prev => ({ ...prev, [video. id]: false }));
                             }}
                             className="w-full p-2 hover:bg-primary/20 rounded-lg transition-all text-sm text-muted-foreground hover:text-foreground flex items-center justify-center gap-2"
                           >
@@ -917,7 +1030,7 @@ export default function SatansSinagogue() {
                   </div>
 
                   <div className="flex flex-col items-center gap-1">
-                    <button 
+                    <button
                       onClick={() => openShare(video.id)}
                       className="p-3 rounded-full bg-background/20 backdrop-blur-md border border-white/10 hover:bg-background/30 hover:scale-110 transition-all duration-200 active:scale-95 shadow-lg"
                     >
@@ -931,7 +1044,7 @@ export default function SatansSinagogue() {
                     {(() => {
                       try {
                         const metadata = JSON.parse(video.content);
-                        
+
                         if (metadata.title || metadata.chant || metadata.tags) {
                           return (
                             <div className="space-y-1 bg-black/30 backdrop-blur-sm rounded-lg p-3">
@@ -945,10 +1058,10 @@ export default function SatansSinagogue() {
                                   "{metadata.chant}"
                                 </p>
                               )}
-                              {metadata.tags && metadata.tags. length > 0 && (
+                              {metadata.tags && metadata.tags.length > 0 && (
                                 <div className="flex flex-wrap gap-1 mt-2">
-                                  {metadata.tags.map((tag: string, idx: number) => (
-                                    <span 
+                                  {metadata.tags.map((tag:  string, idx: number) => (
+                                    <span
                                       key={idx}
                                       className="text-xs bg-crimson/80 text-white px-2 py-0.5 rounded-full"
                                     >
@@ -960,7 +1073,7 @@ export default function SatansSinagogue() {
                             </div>
                           );
                         }
-                        
+
                         return (
                           <p className="text-white text-sm drop-shadow-lg line-clamp-3 bg-black/30 backdrop-blur-sm rounded-lg p-3">
                             {video.content}
@@ -995,7 +1108,7 @@ export default function SatansSinagogue() {
       )}
 
       {videos.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
+                        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
           <VideoUpload onUploadComplete={() => fetchVideos(0)} />
         </div>
       )}
@@ -1008,7 +1121,7 @@ export default function SatansSinagogue() {
               Notifications ({unreadCount} unread)
             </DrawerTitle>
           </DrawerHeader>
-          
+
           <ScrollArea className="flex-1 px-4 py-2">
             {notifications.length === 0 ? (
               <div className="text-center py-12">
@@ -1023,19 +1136,19 @@ export default function SatansSinagogue() {
                     key={notification.id}
                     onClick={() => {
                       markNotificationAsRead(notification.id);
-                      navigate(`/satans-sinagogue? v=${notification.video_id}`);
+                      navigate(`/satans-sinagogue?v=${notification.video_id}`);
                       setNotificationsOpen(false);
                     }}
                     className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all ${
-                      notification.read 
-                        ? 'bg-card hover:bg-card/80' 
+                      notification.read
+                        ? 'bg-card hover:bg-card/80'
                         : 'bg-primary/10 hover:bg-primary/20 border border-primary/30'
                     }`}
                   >
                     <Avatar className="h-10 w-10">
                       <AvatarImage src={notification.creator?. avatar_url || ""} />
                       <AvatarFallback className="bg-primary/20 text-primary">
-                        {notification.creator?.username?. charAt(0).toUpperCase() || "U"}
+                        {notification.creator?. username?.charAt(0).toUpperCase() || "U"}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
@@ -1065,7 +1178,7 @@ export default function SatansSinagogue() {
               Who's Trending
             </DrawerTitle>
           </DrawerHeader>
-          
+
           <ScrollArea className="flex-1 px-4 py-2">
             <div className="space-y-3">
               {trendingUsers.map((user, index) => (
@@ -1143,7 +1256,7 @@ export default function SatansSinagogue() {
               <a href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl || '')}`} target="_blank" rel="noopener noreferrer">X (Twitter)</a>
             </Button>
             <Button asChild variant="outline">
-              <a href={`https://www.facebook. com/sharer/sharer. php?u=${encodeURIComponent(shareUrl || '')}`} target="_blank" rel="noopener noreferrer">Facebook</a>
+              <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl || '')}`} target="_blank" rel="noopener noreferrer">Facebook</a>
             </Button>
             <Button asChild variant="outline">
               <a href={`https://www.reddit.com/submit?url=${encodeURIComponent(shareUrl || '')}`} target="_blank" rel="noopener noreferrer">Reddit</a>
@@ -1163,7 +1276,9 @@ export default function SatansSinagogue() {
                 } else {
                   await copyShareUrl();
                 }
-              } catch {}
+              } catch (error) {
+                console.error("Share error:", error);
+              }
             }}>Native Share</Button>
             <Button onClick={copyShareUrl}>Copy link</Button>
           </DialogFooter>
@@ -1175,10 +1290,10 @@ export default function SatansSinagogue() {
           <DrawerHeader>
             <DrawerTitle>Thoughts ({commentCounts[activePostId || ""] || 0})</DrawerTitle>
           </DrawerHeader>
-          
+
           <ScrollArea className="flex-1 px-4 py-2">
             {comments.length === 0 ?  (
-              <p className="text-center text-muted-foreground py-8">No thoughts yet.  Be the first! </p>
+              <p className="text-center text-muted-foreground py-8">No thoughts yet. Be the first! </p>
             ) : (
               <div className="space-y-4">
                 {comments.map((comment) => (
@@ -1207,8 +1322,8 @@ export default function SatansSinagogue() {
                 className="flex-1 resize-none"
                 rows={2}
               />
-              <Button 
-                onClick={addComment} 
+              <Button
+                onClick={addComment}
                 disabled={!newComment.trim()}
                 className="self-end"
               >

@@ -62,6 +62,7 @@ import AIFixList from "@/components/admin/AIFixList";
 import AIAssetViewer from "@/components/admin/AIAssetViewer";
 import GamingHub from "./admin/GamingHub";
 import PremiumTokenGenerator from "@/pages/admin/PremiumTokenGenerator";
+import BookApprovalAdmin from "./admin/BookApprovalAdmin";
 
 interface Post {
   id: string;
@@ -71,16 +72,16 @@ interface Post {
   updated_at: string;
   visibility: string;
   post_type: string;
-  media_url: string | null;
-  media_type: string | null;
-  featured: boolean;
-  flagged_for_review: boolean;
+  media_url:   string | null;
+  media_type:   string | null;
+  featured:   boolean;
+  flagged_for_review:  boolean;
   profiles: {
     username: string;
   } | null;
-  title?: string;
-  chant?: string;
-  tags?: string[];
+  title? :  string;
+  chant?:  string;
+  tags?:  string[];
 }
 
 interface EditState {
@@ -92,7 +93,7 @@ interface EditState {
 
 interface Annotation {
   id: string;
-  annotation: string;
+  annotation:   string;
   created_at: string;
   admin_user_id: string;
 }
@@ -113,52 +114,53 @@ export default function SuperAdmin() {
   const [annotations, setAnnotations] = useState<Record<string, Annotation[]>>({});
   const [currentUser, setCurrentUser] = useState<any>(null);
 
-  const navItems: NavItem[] = [
+  const navItems:  NavItem[] = [
     { id: "posts", value: "posts", label: "Content Moderation", icon: ShieldIcon },
-    { id: "users", value: "users", label: "Users", icon: Users },
+    { id:   "users", value: "users", label: "Users", icon:  Users },
     { id: "site-config", value: "site-config", label: "Site Config", icon: Settings },
     { id: "system-control", value: "system-control", label: "System Control", icon: Activity },
-    { id: "design-editor", value: "design-editor", label: "Design Editor", icon: Palette },
-    { id: "ai-image-generator", value: "ai-image-generator", label: "AI Image Generator", icon: Image },
-    { id: "book-writing-engine", value: "book-writing-engine", label: "Book Writing Engine", icon: Book },
-    { id: "cinematic-engine", value: "cinematic-engine", label: "Cinematic Engine", icon: Film },
+    { id: "design-editor", value: "design-editor", label: "Design Editor", icon:   Palette },
+    { id: "ai-image-generator", value:   "ai-image-generator", label: "AI Image Generator", icon:   Image },
+    { id:  "book-writing-engine", value:   "book-writing-engine", label: "Book Writing Engine", icon:  Book },
+    { id: "book-approval-admin", value: "book-approval-admin", label: "Book Approval", icon: ShieldIcon },
+    { id:  "cinematic-engine", value:  "cinematic-engine", label:  "Cinematic Engine", icon:  Film },
     { id: "cinematic-frame-editor", value: "cinematic-frame-editor", label: "Cinematic Frame Editor", icon: Film },
     { id: "frame-manager", value: "frame-manager", label: "Frame Manager", icon: Film },
-    { id: "infernal-animation", value: "infernal-animation", label: "Infernal Animation", icon: Zap },
-    { id: "animation-sessions-admin", value: "animation-sessions-admin", label: "Animation Sessions", icon: Zap },
+    { id: "infernal-animation", value: "infernal-animation", label: "Infernal Animation", icon:   Zap },
+    { id:   "animation-sessions-admin", value:  "animation-sessions-admin", label: "Animation Sessions", icon:  Zap },
     { id: "featured-books-slider-admin", value: "featured-books-slider-admin", label: "Featured Books Slider", icon: Book },
-    { id: "header-footer-management", value: "header-footer-management", label: "Header/Footer Management", icon: FileText },
-    { id: "seo-management", value: "seo-management", label: "SEO Management", icon: Search },
-    { id: "occult-library-admin", value: "occult-library-admin", label: "Occult Library", icon: Library },
-    { id: "content-types-admin", value: "content-types-admin", label: "Content Types", icon: FileText },
-    { id: "ritual-calendar-admin", value: "ritual-calendar-admin", label: "Ritual Calendar", icon: Calendar },
-    { id: "allies-coven-admin", value: "allies-coven-admin", label: "Allies & Coven", icon: Users },
-    { id: "infernal-chat-admin", value: "infernal-chat-admin", label: "Infernal Chat", icon: MessageSquare },
-    { id: "ouija-chamber-admin", value: "ouija-chamber-admin", label: "Ouija Chamber", icon: Ghost },
-    { id: "tarot-rune-admin", value: "tarot-rune-admin", label: "Tarot & Rune", icon: Sparkles },
-    { id: "prime-store-admin", value: "prime-store-admin", label: "Prime Store", icon: Store },
-    { id: "premium-services-admin", value: "premium-services-admin", label: "Premium Services", icon: Crown },
-    { id: "premium-token-generator", value: "premium-token-generator", label: "Premium Token Generator", icon: Coins },
-    { id: "my-castle-admin", value: "my-castle-admin", label: "My Castle", icon: Castle },
-    { id: "gaming-hub", value: "gaming-hub", label: "Gaming Hub", icon: Gamepad2 },
+    { id: "header-footer-management", value: "header-footer-management", label:   "Header/Footer Management", icon:   FileText },
+    { id:   "seo-management", value:   "seo-management", label:  "SEO Management", icon:  Search },
+    { id: "occult-library-admin", value:   "occult-library-admin", label:  "Occult Library", icon:  Library },
+    { id: "content-types-admin", value:  "content-types-admin", label:   "Content Types", icon: FileText },
+    { id: "ritual-calendar-admin", value: "ritual-calendar-admin", label:   "Ritual Calendar", icon:  Calendar },
+    { id: "allies-coven-admin", value: "allies-coven-admin", label:  "Allies & Coven", icon: Users },
+    { id: "infernal-chat-admin", value:  "infernal-chat-admin", label:  "Infernal Chat", icon:  MessageSquare },
+    { id: "ouija-chamber-admin", value:   "ouija-chamber-admin", label:  "Ouija Chamber", icon:  Ghost },
+    { id: "tarot-rune-admin", value:  "tarot-rune-admin", label: "Tarot & Rune", icon: Sparkles },
+    { id: "prime-store-admin", value:   "prime-store-admin", label:  "Prime Store", icon: Store },
+    { id: "premium-services-admin", value:  "premium-services-admin", label:   "Premium Services", icon: Crown },
+    { id: "premium-token-generator", value: "premium-token-generator", label:  "Premium Token Generator", icon:  Coins },
+    { id: "my-castle-admin", value: "my-castle-admin", label:   "My Castle", icon: Castle },
+    { id: "gaming-hub", value: "gaming-hub", label:  "Gaming Hub", icon: Gamepad2 },
     { id: "schema-forensics", value: "schema-forensics", label: "Schema Forensics", icon: Search },
     { id: "security-audit", value: "security-audit", label: "Security Audit", icon: Lock },
     { id: "error-analysis", value: "error-analysis", label: "Error Analysis", icon: AlertTriangle },
-    { id: "performance-metrics", value: "performance-metrics", label: "Performance Metrics", icon: BarChart },
-    { id: "module-inventory", value: "module-inventory", label: "Module Inventory", icon: Package },
+    { id: "performance-metrics", value: "performance-metrics", label: "Performance Metrics", icon:   BarChart },
+    { id: "module-inventory", value:   "module-inventory", label:  "Module Inventory", icon: Package },
     { id: "audit-history", value: "audit-history", label: "Audit History", icon: FileText },
     { id: "action-items", value: "action-items", label: "Action Items", icon: CheckSquare },
-    { id: "system-audit", value: "system-audit", label: "System Audit", icon: Activity },
-    { id: "integration-report", value: "integration-report", label: "Integration Report", icon: Wrench },
-    { id: "site-audit-dashboard", value: "site-audit-dashboard", label: "Site Audit Dashboard", icon: BarChart },
+    { id:   "system-audit", value:  "system-audit", label:  "System Audit", icon: Activity },
+    { id:  "integration-report", value: "integration-report", label: "Integration Report", icon:   Wrench },
+    { id:   "site-audit-dashboard", value:  "site-audit-dashboard", label:  "Site Audit Dashboard", icon:  BarChart },
     { id: "feature-instructions", value: "feature-instructions", label: "Feature Instructions", icon: Book },
-    { id: "access-keys-admin", value: "access-keys-admin", label: "Access Keys", icon: Key },
+    { id: "access-keys-admin", value: "access-keys-admin", label:  "Access Keys", icon: Key },
     { id: "module-registry", value: "module-registry", label: "Module Registry", icon: Package },
     { id: "reports-moderation", value: "reports-moderation", label: "Reports Moderation", icon: Flag },
-    { id: "super-admin-ai", value: "super-admin-ai", label: "Super Admin AI", icon: Sparkles },
-    { id: "ai-fix-dashboard", value: "ai-fix-dashboard", label: "AI Fix Dashboard", icon: Wrench },
-    { id: "ai-fix-list", value: "ai-fix-list", label: "AI Fix List", icon: CheckSquare },
-    { id: "ai-asset-viewer", value: "ai-asset-viewer", label: "AI Asset Viewer", icon: Image },
+    { id: "super-admin-ai", value: "super-admin-ai", label:   "Super Admin AI", icon:   Sparkles },
+    { id:   "ai-fix-dashboard", value:  "ai-fix-dashboard", label:  "AI Fix Dashboard", icon:  Wrench },
+    { id:   "ai-fix-list", value: "ai-fix-list", label:  "AI Fix List", icon:  CheckSquare },
+    { id:   "ai-asset-viewer", value: "ai-asset-viewer", label:  "AI Asset Viewer", icon:  Image },
   ];
 
   useEffect(() => {
@@ -174,9 +176,10 @@ export default function SuperAdmin() {
   const checkAdminAccess = async () => {
     setAuthChecking(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data:  { user } } = await supabase.auth.getUser();
       
       if (!user) {
+        console.log("❌ No user logged in");
         toast.error("Please log in to access admin panel");
         navigate("/auth");
         return;
@@ -184,23 +187,55 @@ export default function SuperAdmin() {
 
       setCurrentUser(user);
 
-      const { data: roleData, error } = await (supabase as any)
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .maybeSingle();
+      console.log("🔍 Checking superadmin access for:", user.email, user.id);
 
-      if (error || !roleData) {
-        toast.error("Access Denied - Admin privileges required");
+      const { data:   allRoles, error:   rolesError } = await (supabase as any)
+        .from("user_roles")
+        .select("*")
+        .eq("user_id", user.id);
+
+      console.log("📋 Database query result:", { allRoles, rolesError });
+
+      if (rolesError) {
+        console.error("❌ Database error:", rolesError);
+        toast.error("Database error:  " + rolesError.message);
         navigate("/dashboard");
         return;
       }
 
+      if (! allRoles || allRoles. length === 0) {
+        console.log("❌ No roles found for user");
+        toast.error("Access Denied - No roles assigned to your account");
+        navigate("/dashboard");
+        return;
+      }
+
+      console.log("📋 All roles found:", allRoles. map((r: any) => r.role).join(", "));
+
+      const hasSuperAdmin = allRoles.some((r: any) => r.role === "superadmin");
+      const hasAdmin = allRoles.some((r: any) => r.role === "admin");
+
+      console.log("👑 Has superadmin? ", hasSuperAdmin);
+      console.log("🛡️ Has admin?", hasAdmin);
+
+      if (!hasSuperAdmin && !hasAdmin) {
+        console.log("❌ User does not have required role");
+        toast.error("Access Denied - Admin or Superadmin role required.  Your roles:  " + allRoles.map((r: any) => r.role).join(", "));
+        navigate("/dashboard");
+        return;
+      }
+
+      console.log("✅ Access granted!");
       setIsAdmin(true);
-    } catch (error: any) {
-      console.error("Auth check error:", error);
-      toast.error("Authentication error");
+      
+      if (hasSuperAdmin) {
+        toast.success("🔥 Welcome Superadmin!");
+      } else {
+        toast.success("🛡️ Welcome Admin!");
+      }
+    } catch (error:   any) {
+      console.error("💥 Fatal error:", error);
+      toast.error("System error: " + error.message);
       navigate("/auth");
     } finally {
       setAuthChecking(false);
@@ -216,7 +251,7 @@ export default function SuperAdmin() {
           *,
           profiles(username)
         `)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending:   false });
 
       if (filterType !== "all") {
         query = query.eq("post_type", filterType);
@@ -247,7 +282,7 @@ export default function SuperAdmin() {
       if (filteredData) {
         filteredData.forEach((post: any) => fetchAnnotations(post.id));
       }
-    } catch (error: any) {
+    } catch (error:  any) {
       console.error("Fetch error:", error);
       toast.error("Failed to load posts");
     } finally {
@@ -260,7 +295,7 @@ export default function SuperAdmin() {
       .from("admin_annotations")
       .select("*")
       .eq("post_id", postId)
-      . order("created_at", { ascending: false });
+      .order("created_at", { ascending: false });
 
     if (data) {
       setAnnotations(prev => ({ ...prev, [postId]: data }));
@@ -269,14 +304,14 @@ export default function SuperAdmin() {
 
   const logEdit = async (postId: string, editType: string, oldValue: any, newValue: any) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data:   { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      await (supabase as any). from("admin_post_edits").insert({
+      await (supabase as any).from("admin_post_edits").insert({
         post_id: postId,
         admin_user_id: user.id,
         edit_type: editType,
-        old_value: oldValue,
+        old_value:  oldValue,
         new_value: newValue,
       });
     } catch (error) {
@@ -288,7 +323,7 @@ export default function SuperAdmin() {
     const state = editState[post.id];
     if (!state) return;
 
-    const updates: any = {
+    const updates:   any = {
       content: state.content,
       visibility: state.visibility,
       post_type: state. post_type,
@@ -330,15 +365,15 @@ export default function SuperAdmin() {
       await (supabase as any).from("comments").delete().eq("post_id", postId);
       await (supabase as any).from("admin_annotations").delete().eq("post_id", postId);
 
-      const { error } = await (supabase as any). from("posts").delete().eq("id", postId);
+      const { error } = await (supabase as any).from("posts").delete().eq("id", postId);
 
       if (error) throw error;
 
       toast.success("Post deleted successfully");
       fetchPosts();
-    } catch (error: any) {
+    } catch (error:   any) {
       console.error("Delete error:", error);
-      toast.error("Failed to delete post: " + error.message);
+      toast.error("Failed to delete post:  " + error.message);
     }
   };
 
@@ -353,7 +388,7 @@ export default function SuperAdmin() {
 
       toast.success(post.featured ? "Removed from featured" : "Added to featured");
       fetchPosts();
-    } catch (error: any) {
+    } catch (error:  any) {
       toast.error("Failed to toggle featured status");
     }
   };
@@ -361,15 +396,15 @@ export default function SuperAdmin() {
   const handleToggleFlagged = async (post: Post) => {
     try {
       const { error } = await (supabase as any)
-        . from("posts")
+        .from("posts")
         .update({ flagged_for_review: !post.flagged_for_review })
         .eq("id", post.id);
 
       if (error) throw error;
 
-      toast.success(post.flagged_for_review ? "Flag removed" : "Post flagged");
+      toast.success(post.flagged_for_review ?  "Flag removed" : "Post flagged");
       fetchPosts();
-    } catch (error: any) {
+    } catch (error:   any) {
       toast.error("Failed to toggle flag status");
     }
   };
@@ -407,25 +442,27 @@ export default function SuperAdmin() {
     switch (activeTab) {
       case "posts":
         return <ContentModerationAdmin />;
-      case "users":
+      case "users":  
         return <UsersAdmin />;
-      case "site-config":
+      case "site-config":  
         return <SiteConfigAdmin />;
-      case "design-editor":
+      case "design-editor": 
         return <DesignEditor />;
       case "ai-image-generator":
         return <AIImageGenerator />;
-      case "book-writing-engine":
+      case "book-writing-engine": 
         return <BookWritingEngine />;
-      case "cinematic-engine":
+      case "book-approval-admin":
+        return <BookApprovalAdmin />;
+      case "cinematic-engine": 
         return <CinematicEngine />;
-      case "cinematic-frame-editor":
+      case "cinematic-frame-editor":  
         return <CinematicFrameEditor />;
       case "frame-manager":
         return <FrameManager />;
-      case "infernal-animation":
+      case "infernal-animation":  
         return <InfernalAnimation />;
-      case "featured-books-slider-admin":
+      case "featured-books-slider-admin":  
         return <FeaturedBooksSliderAdmin />;
       case "header-footer-management":
         return <HeaderFooterManagement />;
@@ -433,15 +470,15 @@ export default function SuperAdmin() {
         return <SEOManagement />;
       case "schema-forensics":
         return <SchemaForensics />;
-      case "security-audit":
+      case "security-audit":  
         return <SecurityAudit />;
       case "error-analysis":
         return <ErrorAnalysis />;
       case "performance-metrics":
         return <PerformanceMetrics />;
-      case "module-inventory":
+      case "module-inventory": 
         return <ModuleInventory />;
-      case "audit-history":
+      case "audit-history":  
         return <AuditHistory />;
       case "action-items":
         return <ActionItems />;
@@ -455,7 +492,7 @@ export default function SuperAdmin() {
         return <AccessKeysAdmin />;
       case "occult-library-admin":
         return <OccultLibraryAdmin />;
-      case "module-registry":
+      case "module-registry": 
         return <ModuleRegistry />;
       case "animation-sessions-admin":
         return <AnimationSessionsAdmin />;
@@ -469,7 +506,7 @@ export default function SuperAdmin() {
         return <PremiumServicesAdmin />;
       case "ai-fix-dashboard":
         return <AIFixDashboard />;
-      case "ai-fix-list":
+      case "ai-fix-list":  
         return <AIFixList />;
       case "ai-asset-viewer":
         return <AIAssetViewer />;
@@ -493,7 +530,7 @@ export default function SuperAdmin() {
         return <MyCastleAdmin />;
       case "content-types-admin":
         return <ContentTypesAdmin />;
-      case "system-control":
+      case "system-control":  
         return <SystemControl />;
       default:
         return (
@@ -511,6 +548,7 @@ export default function SuperAdmin() {
         <div className="text-center space-y-4">
           <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
           <p className="text-lg text-muted-foreground">Verifying admin access...</p>
+          <p className="text-sm text-muted-foreground">Check browser console (F12) for debug info</p>
         </div>
       </div>
     );
@@ -530,7 +568,10 @@ export default function SuperAdmin() {
               <h1 className="text-xl font-bold">Super Admin Panel</h1>
             </div>
             <div className="ml-auto flex items-center gap-4">
-              <Badge variant="outline">{currentUser?.email}</Badge>
+              <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+                <Crown className="h-3 w-3 mr-1" />
+                {currentUser?.email}
+              </Badge>
               <Button variant="outline" size="sm" onClick={() => navigate("/dashboard")}>
                 <X className="h-4 w-4 mr-2" />
                 Exit
@@ -548,7 +589,7 @@ export default function SuperAdmin() {
             <div className="px-4 overflow-x-auto">
               <TabsList className="h-auto flex-wrap gap-2 bg-transparent">
                 {navItems.map((item) => (
-                  <TabsTrigger key={item. id} value={item.value} className="gap-2">
+                  <TabsTrigger key={item.id} value={item.value} className="gap-2">
                     <item.icon className="h-4 w-4" />
                     {item.label}
                   </TabsTrigger>

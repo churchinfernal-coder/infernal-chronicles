@@ -1,20 +1,35 @@
-﻿import { SidebarProvider } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/AppSidebar";
-import { AppHeader } from "@/components/AppHeader";
 import { Outlet } from "react-router-dom";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { ThemeSwitcher } from "@/components/ThemeSwitcher";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import Footer from "@/components/Footer";
 
 export default function Layout() {
   return (
-    <SidebarProvider>
-      <div className="flex h-screen w-screen overflow-hidden bg-background">
-        <AppSidebar />
-        <div className="flex flex-col flex-1 min-w-0 h-full overflow-hidden">
-          <AppHeader />
-          <main className="flex-1 overflow-y-auto overflow-x-hidden">
-            <Outlet />
-          </main>
+    <div className="min-h-screen flex flex-col">
+      {/* Simple Header for Public Pages */}
+      <header className="sticky top-0 z-50 h-14 border-b border-border bg-background">
+        <div className="h-full flex items-center justify-between px-4">
+          <Link to="/" className="flex items-center gap-2">
+            <span className="text-lg font-bold">Infernal Social</span>
+          </Link>
+
+          <div className="flex items-center gap-2">
+            <ThemeSwitcher />
+            <LanguageSwitcher />
+            <Button asChild>
+              <Link to="/auth">Sign In</Link>
+            </Button>
+          </div>
         </div>
-      </div>
-    </SidebarProvider>
+      </header>
+
+      <main className="flex-1">
+        <Outlet />
+      </main>
+      
+      <Footer />
+    </div>
   );
 }

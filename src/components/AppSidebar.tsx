@@ -1,115 +1,103 @@
-import { useState, useEffect } from "react";
-import { Home, Users, Flame, Settings, Store, Skull, Moon, Video, Castle, Sparkles, CircleDot, Swords, Library, Image } from "lucide-react";
-import { NavLink } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import React from "react";
+import { Link, useLocation } from "react-router-dom";
 import {
   Sidebar,
   SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
+  SidebarHeader,
+  SidebarFooter,
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarHeader,
+  SidebarGroup,
+  SidebarGroupContent,
 } from "@/components/ui/sidebar";
+import {
+  Home,
+  Video,
+  Image,
+  Users,
+  Flame,
+  Wand2,
+  Moon,
+  Sparkles,
+  Swords,
+  Skull,
+  Calendar,
+  Library,
+  Zap,
+  Castle,
+  Settings,
+  LogOut,
+} from "lucide-react";
 
-const PitchforkIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#DC143C" strokeWidth="2">
-    <line x1="7" y1="3" x2="7" y2="10" />
-    <line x1="12" y1="3" x2="12" y2="10" />
-    <line x1="17" y1="3" x2="17" y2="10" />
-    <line x1="12" y1="10" x2="12" y2="21" />
-    <line x1="7" y1="10" x2="17" y2="10" />
-  </svg>
-);
+interface SidebarItem {
+  title: string;
+  url: string;
+  icon: React.ReactNode;
+}
 
 export function AppSidebar() {
-  const [profile, setProfile] = useState<{ username: string | null; avatar_url: string | null } | null>(null);
+  const location = useLocation();
 
-  const freeItems = [
-    { title: "Devil's Diary", url: "/feed", icon: Home },
-    { title: "Satan's Sinagogue", url: "/satans-sinagogue", icon: Video },
-    { title: "Picture Palace", url: "/picture-palace", icon: Image },
-    { title: "Allies", url: "/friends", icon: Users },
-    { title: "Covens", url: "/covens", icon: Flame },
-    { title: "Infernal Chat", url: "/chat", icon: PitchforkIcon },
+  const hideSidebarOn = ["/auth", "/superadmin", "/chat"];
+  const shouldHide = hideSidebarOn.some(
+    (route) => location.pathname === route || location.pathname.startsWith(route + "/")
+  ) || location.pathname.startsWith("/coven/");
+
+  if (shouldHide) {
+    return null;
+  }
+
+  const freeItems: SidebarItem[] = [
+    { title: "Devil's Diary", url: "/feed", icon: <Home className="h-5 w-5 text-[#f50838]" /> },
+    { title:  "Satan's Sinagogue", url: "/satans-sinagogue", icon: <Video className="h-5 w-5 text-[#DC143C]" /> },
+    { title:  "Picture Palace", url: "/picture-palace", icon: <Image className="h-5 w-5 text-[#DC143C]" /> },
+    { title: "Allies", url: "/friends", icon: <Users className="h-5 w-5 text-[#fd0909]" /> },
+    { title:  "Covens", url: "/covens", icon: <Flame className="h-5 w-5 text-[#DC143C]" /> },
+    { title: "Infernal Chat", url: "/chat", icon:  <Wand2 className="h-5 w-5 text-[#DC143C]" /> },
   ];
 
-  const premiumItems = [
-    { title: "Ouija Chamber", url: "/ouija-room", icon: Moon },
-    { title: "Tarot Reading", url: "/tarot-reading", icon: Sparkles },
-    { title: "Rune Casting", url: "/rune-casting", icon: Swords },
-    { title: "Solomon's Chamber", url: "/solomons-chamber", icon: Skull },
-    { title: "Ritual Calendar", url: "/ritual-calendar", icon: CircleDot },
-    { title: "Occult Library", url: "/occult-library", icon: Library },
-    { title: "Wicked Works", url: "/wicked-works", icon: Sparkles },
-    { title: "Prime Store", url: "/store", icon: Store },
+  const premiumItems:  SidebarItem[] = [
+    { title: "Ouija Chamber", url: "/ouija-room", icon: <Moon className="h-5 w-5 text-[#DC143C]" /> },
+    { title:  "Tarot Chamber", url: "/tarot", icon: <Sparkles className="h-5 w-5 text-[#DC143C]" /> }, // ← CHANGED from /tarot-reading to /tarot
+    { title:  "Rune Casting", url: "/rune-casting", icon: <Swords className="h-5 w-5 text-[#DC143C]" /> },
+    { title: "Solomon's Chamber", url: "/solomons-chamber", icon: <Skull className="h-5 w-5 text-[#DC143C]" /> },
+    { title: "Ritual Calendar", url: "/ritual-calendar", icon: <Calendar className="h-5 w-5 text-[#DC143C]" /> },
+    { title: "Occult Library", url: "/occult-library", icon: <Library className="h-5 w-5 text-[#DC143C]" /> },
+    { title: "Wicked Works", url: "/wicked-works", icon: <Zap className="h-5 w-5 text-[#DC143C]" /> },
   ];
 
-  const bottomItems = [
-    { title: "My Castle", url: "/my-dungeon", icon: Castle },
-    { title: "Settings", url: "/settings", icon: Settings },
+  const bottomItems: SidebarItem[] = [
+    { title: "My Castle", url: "/profile", icon: <Castle className="h-5 w-5 text-[#DC143C]" /> },
+    { title: "Settings", url: "/settings", icon: <Settings className="h-5 w-5 text-[#DC143C]" /> },
   ];
 
-  useEffect(() => {
-    fetchProfile();
-  }, []);
-
-  const fetchProfile = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (! user) return;
-
-    const { data } = await (supabase as any)
-      .from("profiles")
-      .select("username, avatar_url")
-      .eq("user_id", user.id)
-      .single();
-
-    if (data) setProfile(data);
-  };
+  const isActive = (url: string) => location.pathname === url;
 
   return (
-    <Sidebar className="border-r border-sidebar-border bg-linear-to-b from-background to-background/95">
-      <SidebarHeader className="p-4 border-b border-sidebar-border">
-        <NavLink to="/profile" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-          <Avatar className="h-10 w-10 border-[#DC143C]/30">
-            <AvatarImage src={profile?.avatar_url || ""} />
-            <AvatarFallback className="bg-[#DC143C]/20 text-[#DC143C] font-semibold">
-              {profile?.username ?  profile.username.charAt(0). toUpperCase() : "U"}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex flex-col min-w-0">
-            <span className="font-semibold text-sm text-[#DC143C] truncate">
-              {profile?.username || "Loading..."}
-            </span>
-            <span className="text-xs text-muted-foreground">View Castle</span>
-          </div>
-        </NavLink>
+    <Sidebar className="bg-slate-950 border-r border-slate-800">
+      <SidebarHeader className="border-b border-slate-800 p-4">
+        <div className="text-lg font-bold text-white">Infernal Social</div>
       </SidebarHeader>
 
-      <SidebarContent className="overflow-y-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-        <style>{`
-          [data-sidebar-content]::-webkit-scrollbar { display: none; }
-        `}</style>
-        
+      <SidebarContent className="overflow-y-auto">
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {freeItems. map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink
+              {freeItems.map((item) => (
+                <SidebarMenuItem key={item. url}>
+                  <SidebarMenuButton asChild isActive={isActive(item.url)}>
+                    <Link
                       to={item.url}
-                      className={({ isActive }) =>
-                        isActive
-                          ? "bg-sidebar-accent text-[#DC143C] font-semibold text-xs py-2"
-                          : "hover:bg-sidebar-accent/50 text-[#DC143C]/80 hover:text-[#DC143C] text-xs py-2"
-                      }
+                      className={`flex items-center gap-3 px-4 py-2 rounded cursor-pointer no-underline ${
+                        isActive(item.url)
+                          ? "bg-slate-900 text-white"
+                          : "text-white hover: bg-slate-900"
+                      }`}
                     >
-                      <item.icon className="h-4 w-4" />
+                      {item.icon}
                       <span className="font-medium">{item.title}</span>
-                    </NavLink>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -117,26 +105,26 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup>
-          <div className="px-2 py-2 text-xs font-semibold text-[#DC143C] uppercase border-t border-sidebar-border">
-            PREMIUM SERVICES
+        <SidebarGroup className="mt-4">
+          <div className="px-4 py-2 text-xs font-bold text-[#DC143C] uppercase tracking-wider">
+            Premium Services
           </div>
           <SidebarGroupContent>
             <SidebarMenu>
               {premiumItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink
+                <SidebarMenuItem key={item.url}>
+                  <SidebarMenuButton asChild isActive={isActive(item.url)}>
+                    <Link
                       to={item.url}
-                      className={({ isActive }) =>
-                        isActive
-                          ? "bg-sidebar-accent text-[#DC143C] font-semibold text-xs py-2"
-                          : "hover:bg-sidebar-accent/50 text-[#DC143C]/80 hover:text-[#DC143C] text-xs py-2"
-                      }
+                      className={`flex items-center gap-3 px-4 py-2 rounded cursor-pointer no-underline ${
+                        isActive(item.url)
+                          ? "bg-slate-900 text-white"
+                          : "text-white hover:bg-slate-900"
+                      }`}
                     >
-                      <item.icon className="h-4 w-4" />
+                      {item.icon}
                       <span className="font-medium">{item.title}</span>
-                    </NavLink>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -144,23 +132,23 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup>
+        <SidebarGroup className="mt-4">
           <SidebarGroupContent>
             <SidebarMenu>
-              {bottomItems. map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink
+              {bottomItems.map((item) => (
+                <SidebarMenuItem key={item.url}>
+                  <SidebarMenuButton asChild isActive={isActive(item. url)}>
+                    <Link
                       to={item.url}
-                      className={({ isActive }) =>
-                        isActive
-                          ? "bg-sidebar-accent text-[#DC143C] font-semibold text-xs py-2"
-                          : "hover:bg-sidebar-accent/50 text-[#DC143C]/80 hover:text-[#DC143C] text-xs py-2"
-                      }
+                      className={`flex items-center gap-3 px-4 py-2 rounded cursor-pointer no-underline ${
+                        isActive(item. url)
+                          ? "bg-slate-900 text-white"
+                          : "text-white hover:bg-slate-900"
+                      }`}
                     >
-                      <item.icon className="h-4 w-4" />
+                      {item.icon}
                       <span className="font-medium">{item.title}</span>
-                    </NavLink>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -168,6 +156,16 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+
+      <SidebarFooter className="border-t border-slate-800 p-4">
+        <Link
+          to="/auth"
+          className="w-full flex items-center gap-2 px-3 py-2 rounded text-white hover: bg-slate-900 transition-colors font-medium no-underline"
+        >
+          <LogOut className="h-5 w-5" />
+          <span>Logout</span>
+        </Link>
+      </SidebarFooter>
     </Sidebar>
   );
 }

@@ -1,4 +1,5 @@
-﻿import React from 'react';
+﻿import React from 'react'
+import { HelmetProvider } from 'react-helmet-async';
 import ReactDOM from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
@@ -17,7 +18,10 @@ if (!rootElement) {
 
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
+    <HelmetProvider>
     <App />
+  </HelmetProvider>
   </React.StrictMode>
 );
+
 

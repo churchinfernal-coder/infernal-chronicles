@@ -1,4 +1,4 @@
-﻿import { Component, ReactNode } from "react";
+import { Component, ReactNode } from "react";
 import { Button } from "./ui/button";
 import { AlertTriangle } from "lucide-react";
 

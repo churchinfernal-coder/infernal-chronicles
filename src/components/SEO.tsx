@@ -1,4 +1,4 @@
-﻿import { Helmet } from "react-helmet-async";
+import { Helmet } from "react-helmet-async";
 
 interface SEOProps {
   title?: string;
@@ -8,7 +8,7 @@ interface SEOProps {
 }
 
 export function SEO({ 
-  title = "Infernal Social — Connect, Share, Summon", 
+  title = "Infernal Social � Connect, Share, Summon", 
   description = "A privacy-first social platform for the occult community",
   image = "/og-image.png",
   url = window.location.href

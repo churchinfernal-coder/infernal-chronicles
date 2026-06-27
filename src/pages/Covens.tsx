@@ -1,4 +1,4 @@
-// ═══════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
 // Covens List Page - PHASE 1 FIXED
 // ✅ Type-safe
 // ✅ Secure token generation
@@ -7,10 +7,10 @@
 // ✅ No race conditions
 // ✅ Optimistic UI updates
 // ✅ SOLID MODAL BACKGROUNDS - NO TRANSPARENCY
-// ═══════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase as supabaseClient } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,7 +28,7 @@ import {
   joinCovenByInviteCode, 
   validateFile 
 } from "@/lib/covenHelpers";
-
+const supabase = supabaseClient as any;
 const AVAILABLE_SIGILS = GOETIA_DEMONS.slice(0, 12);
 
 interface Coven {
@@ -252,13 +252,48 @@ export default function Covens() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-6 md:ml-64 lg:ml-72">
+    <div className="min-h-screen bg-background p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-2 tracking-wide">
+        <div className="text-center mb-8 px-4">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-3">
             UNDERGROUND CHAMBERS
           </h1>
-          <p className="text-muted-foreground text-lg">Ritual-based subculture groups</p>
+          <p className="text-zinc-400 text-sm sm: text-base mb-6 max-w-2xl mx-auto">
+            Ritual-based subculture groups for practitioners of the Left-Hand Path
+          </p>
+          
+          {/* Info Cards - Mobile Optimized */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-3xl mx-auto mb-6">
+            <div className="p-4 rounded-lg bg-zinc-900/50 border border-zinc-800">
+              <Users className="h-6 w-6 text-red-500 mx-auto mb-2" />
+              <p className="text-xs text-zinc-500 uppercase tracking-wide mb-1">Your Chamber</p>
+              <p className="text-white font-semibold">Full Admin Control</p>
+            </div>
+            <div className="p-4 rounded-lg bg-zinc-900/50 border border-zinc-800">
+              <Plus className="h-6 w-6 text-amber-500 mx-auto mb-2" />
+              <p className="text-xs text-zinc-500 uppercase tracking-wide mb-1">Sigils</p>
+              <p className="text-white font-semibold">Permanent Goetia Mark</p>
+            </div>
+            <div className="p-4 rounded-lg bg-zinc-900/50 border border-zinc-800">
+              <Users className="h-6 w-6 text-purple-500 mx-auto mb-2" />
+              <p className="text-xs text-zinc-500 uppercase tracking-wide mb-1">Members</p>
+              <p className="text-white font-semibold">Invite-Only Access</p>
+            </div>
+          </div>
+
+          {/* Important Notice */}
+          <div className="mt-6 p-4 rounded-lg bg-amber-900/20 border border-amber-800/50 max-w-2xl mx-auto">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">⚠️</span>
+              <div className="text-left">
+                <p className="text-amber-400 font-semibold text-sm mb-1">Important:  Sigils are Permanent</p>
+                <p className="text-amber-200/80 text-xs">
+                  Chamber sigils (Goetia demon seals) are chosen during creation and cannot be changed.  
+                  You can upload a custom avatar in settings, but the sigil remains your chamber's mystical identifier.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">

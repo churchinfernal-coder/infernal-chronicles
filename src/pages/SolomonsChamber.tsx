@@ -50,7 +50,7 @@ export default function SolomonsChamber() {
     return "mystery";
   };
 
-  const domainOptions = Array.from(new Set(GOETIA_DEMONS.map(d => inferDomain(d. description))));
+  const domainOptions = Array.from(new Set(GOETIA_DEMONS. map(d => inferDomain(d.  description))));
 
   const filteredDemons = GOETIA_DEMONS.filter(d =>
     (rankFilter === "All" || d.rank === rankFilter) &&
@@ -58,21 +58,22 @@ export default function SolomonsChamber() {
   );
 
   const checkUser = async () => {
-    const { data: { user } } = await supabase.auth. getUser();
+    const { data:  { user } } = await supabase.auth.  getUser();
     if (!user) {
       navigate("/auth");
       return;
     }
     setUserId(user.id);
 
+    // ✅ FIXED: Changed user_id to id
     const { data } = await (supabase as any)
       .from("profiles")
       .select("selected_goetia_sigil, prime_level")
-      . eq("user_id", user. id)
+      .eq("id", user.id)
       .single();
     
     if (data?. selected_goetia_sigil) {
-      const demonNumber = parseInt(data.selected_goetia_sigil.split("-")[1]);
+      const demonNumber = parseInt(data. selected_goetia_sigil. split("-")[1]);
       setCurrentSigil(data.selected_goetia_sigil);
       setSelectedDemon(demonNumber);
     }
@@ -82,7 +83,7 @@ export default function SolomonsChamber() {
     const { data: unlocked } = await (supabase as any)
       .from("user_unlocked_content")
       .select("content_id")
-      . eq("user_id", user. id);
+      .eq("user_id", user.id);
     
     if (unlocked) {
       setUnlockedContent(new Set(unlocked. map((u: any) => u.content_id)));
@@ -93,18 +94,18 @@ export default function SolomonsChamber() {
     const { data } = await (supabase as any)
       .from("locked_content")
       .select("*")
-      .order("required_prime_level", { ascending: true });
+      .order("required_prime_level", { ascending:  true });
     
     if (data) {
       setLockedContent(data);
     }
   };
 
-  const unlockContent = async (contentId: string, requiredPrimeLevel: number) => {
+  const unlockContent = async (contentId: string, requiredPrimeLevel:  number) => {
     if (!userId) return;
 
     if (primeLevel < requiredPrimeLevel) {
-      toast. error(`${t("solomon.toast.requiresLevel")} ${requiredPrimeLevel}`, {
+      toast.error(`${t("solomon.toast.requiresLevel")} ${requiredPrimeLevel}`, {
         description: `${t("solomon.toast.currentLevel")}: ${primeLevel}`
       });
       return;
@@ -120,8 +121,8 @@ export default function SolomonsChamber() {
     }
 
     setUnlockedContent(prev => new Set([...prev, contentId]));
-    toast.success(t("solomon.toast.unlockSuccess"), {
-      description: t("solomon. toast.unlockDesc")
+    toast.success(t("solomon. toast.unlockSuccess"), {
+      description: t("solomon.toast.unlockDesc")
     });
   };
 
@@ -134,14 +135,15 @@ export default function SolomonsChamber() {
     setSummoning(true);
     setTimeout(() => setSummoning(false), 900);
 
-    playAmbientSound(demon.rank);
+    playAmbientSound(demon. rank);
     
     setSelectedDemon(demonNumber);
 
+    // ✅ FIXED: Changed user_id to id
     const { error } = await (supabase as any)
       .from("profiles")
       .update({ selected_goetia_sigil: sigilId })
-      .eq("user_id", userId);
+      .eq("id", userId);
 
     if (error) {
       toast.error(t("solomon.toast.failed"));
@@ -160,11 +162,11 @@ export default function SolomonsChamber() {
     });
   };
 
-  const playAmbientSound = (rank: string) => {
+  const playAmbientSound = (rank:  string) => {
     const AC = new (window. AudioContext || (window as any).webkitAudioContext)();
 
     const master = AC.createGain();
-    master.gain. value = 0.15;
+    master.gain.value = 0.15;
     master.connect(AC.destination);
 
     const noiseBuffer = AC.createBuffer(1, AC.sampleRate, AC.sampleRate);
@@ -196,7 +198,7 @@ export default function SolomonsChamber() {
     const chains = () => {
       const osc = AC.createOscillator();
       osc.type = 'square';
-      osc.frequency. setValueAtTime(900, AC.currentTime);
+      osc.frequency.setValueAtTime(900, AC. currentTime);
       const gain = AC.createGain();
       gain.gain.setValueAtTime(0.06, AC.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.003, AC.currentTime + 0.6);
@@ -224,12 +226,12 @@ export default function SolomonsChamber() {
 
   const awardBadge = async (rank: string) => {
     try {
-      const { data: badges } = await (supabase as any)
+      const { data:  badges } = await (supabase as any)
         .from("activity_badges")
         .select("id")
         .limit(1);
 
-      const badge = badges?. find((b: any) => {
+      const badge = badges?.find((b: any) => {
         try {
           const criteria = b.criteria as any;
           return criteria?. rank === rank;
@@ -241,8 +243,8 @@ export default function SolomonsChamber() {
       if (badge) {
         await (supabase as any)
           .from("user_activity_badges")
-          . insert({ user_id: userId, badge_id: badge.id })
-          . select();
+          .insert({ user_id: userId, badge_id: badge.id })
+          .select();
       }
     } catch (err) {
       console.error("Badge award error:", err);
@@ -258,11 +260,11 @@ export default function SolomonsChamber() {
         .limit(1)
         .maybeSingle();
 
-      if (! error && badge) {
+      if (!error && badge) {
         await (supabase as any)
           .from("user_activity_badges")
           .insert({ user_id: userId, badge_id: badge.id })
-          . select();
+          .select();
       }
     } catch (err) {
       console.error("Badge award error:", err);
@@ -270,7 +272,7 @@ export default function SolomonsChamber() {
   };
 
   const getRankColor = (rank: string) => {
-    const colors: Record<string, string> = {
+    const colors:  Record<string, string> = {
       King: "bg-red-900/30 text-red-400 border-red-600/50 shadow-[0_0_15px_rgba(220,20,60,0.4)]",
       Duke: "bg-purple-900/30 text-purple-400 border-purple-600/50 shadow-[0_0_15px_rgba(147,51,234,0.4)]",
       Prince: "bg-blue-900/30 text-blue-400 border-blue-600/50 shadow-[0_0_15px_rgba(59,130,246,0.4)]",
@@ -283,10 +285,10 @@ export default function SolomonsChamber() {
   };
 
   return (
-    <div className="min-h-screen bg-[hsl(var(--background))] overflow-hidden pb-20 px-4 md:ml-64 lg:ml-72">
+    <div className="min-h-screen bg-[hsl(var(--background))] overflow-hidden pb-20 px-4">
       <div className={cn(
         "fixed inset-0 flex items-center justify-center pointer-events-none transition-opacity duration-1000 z-0",
-        portalOpen ? "opacity-0" : "opacity-100"
+        portalOpen ?  "opacity-0" : "opacity-100"
       )}>
         <div className="relative w-64 h-64 animate-spin-slow">
           <svg viewBox="0 0 200 200" className="w-full h-full text-[hsl(var(--primary))] drop-shadow-[0_0_30px_hsl(var(--primary))]">
@@ -318,7 +320,7 @@ export default function SolomonsChamber() {
           </p>
           <div className="mt-4 flex items-center justify-center gap-2">
             <Crown className="h-5 w-5 text-[hsl(var(--primary))]" />
-            <span className="text-[hsl(var(--primary))] font-semibold">{t("solomon. primeLevel")}: {primeLevel}</span>
+            <span className="text-[hsl(var(--primary))] font-semibold">{t("solomon.primeLevel")}: {primeLevel}</span>
           </div>
         </div>
 
@@ -346,9 +348,9 @@ export default function SolomonsChamber() {
                 {filteredDemons.map((demon) => (
                   <button
                     key={demon.number}
-                    onMouseEnter={() => setHoveredDemon(demon. number)}
+                    onMouseEnter={() => setHoveredDemon(demon.number)}
                     onMouseLeave={() => setHoveredDemon(null)}
-                    onClick={() => selectDemon(demon. number)}
+                    onClick={() => selectDemon(demon.number)}
                     className="transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary rounded-lg p-1 md:p-2"
                   >
                     <GoetiaSignil
@@ -377,7 +379,7 @@ export default function SolomonsChamber() {
                     />
                     
                     <div className="space-y-2 mt-4 md:mt-8">
-                      <div className="flex flex-col sm:flex-row items-center justify-center gap-2 md:gap-3">
+                      <div className="flex flex-col sm:flex-row items-center justify-center gap-2 md: gap-3">
                         <h2 className="text-2xl md:text-4xl font-serif text-red-600 drop-shadow-[0_0_10px_rgba(220,20,60,0.8)]">
                           {GOETIA_DEMONS[selectedDemon - 1].name}
                         </h2>
@@ -419,7 +421,7 @@ export default function SolomonsChamber() {
                           {isUnlocked ? (
                             <Unlock className="h-4 w-4 md:h-5 md:w-5 text-[hsl(var(--primary))]" />
                           ) : (
-                            <Lock className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
+                            <Lock className="h-4 w-4 md:h-5 md: w-5 text-muted-foreground" />
                           )}
                           <span className="line-clamp-1">{content.title}</span>
                         </CardTitle>
@@ -441,7 +443,7 @@ export default function SolomonsChamber() {
                             <span className="text-sm font-semibold text-[hsl(var(--primary))]">{t("solomon.unlocked")}</span>
                           </div>
                           {content.content_data?.text && (
-                            <p className="text-sm">{content.content_data. text}</p>
+                            <p className="text-sm">{content.content_data.text}</p>
                           )}
                         </div>
                       ) : (
@@ -450,7 +452,7 @@ export default function SolomonsChamber() {
                           disabled={!canUnlock}
                           className="w-full text-sm"
                           size="sm"
-                          variant={canUnlock ? "default" : "secondary"}
+                          variant={canUnlock ? "default" :  "secondary"}
                         >
                           {canUnlock ? t("solomon.unlockContent") : `${t("solomon.toast.requiresLevel")} ${content.required_prime_level}`}
                         </Button>
@@ -463,7 +465,7 @@ export default function SolomonsChamber() {
               {lockedContent.length === 0 && (
                 <div className="col-span-full text-center py-12">
                   <Lock className="h-12 md:h-16 w-12 md:w-16 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-sm md:text-base text-muted-foreground">No locked content available yet</p>
+                  <p className="text-sm md: text-base text-muted-foreground">No locked content available yet</p>
                 </div>
               )}
             </div>

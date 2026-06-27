@@ -104,14 +104,19 @@ export default function AIImageGenerator() {
 
   // Detect admin role using Supabase session and has_role RPC
   useEffect(() => {
-    (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const { data, error } = await supabase.rpc('has_role', { _user_id: session.user.id, _role: 'admin' });
-        setAdminMode(data === true);
-      }
-    })();
-  }, []);
+  const checkAdmin = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      const { data, error } = await (supabase as any).rpc('has_role', { 
+        _user_id: session.user. id, 
+        _role:  'admin' 
+      });
+      setAdminMode(data === true);
+    }
+  };
+  
+  checkAdmin();
+}, []);
   const [prompt, setPrompt] = useState('');
   const [style, setStyle] = useState('default');
   const [colorScheme, setColorScheme] = useState('default');
@@ -756,106 +761,106 @@ export default function AIImageGenerator() {
             </Card>
 
             <Card>
-              <CardHeader>
-                <CardTitle>Preview Tips</CardTitle>
-                <CardDescription>Best practices for realistic humans</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3 text-sm">
-                <div className="p-3 bg-muted/50 rounded">
-                  <strong className="text-primary">Style Selection:</strong>
-                  <p className="text-muted-foreground mt-1">Use "Photorealistic Human" or "Cinematic Portrait" styles for best human results</p>
+            <CardHeader>
+  <CardTitle>Preview Tips</CardTitle>
+  <CardDescription>Best practices for realistic humans</CardDescription>
+</CardHeader>
+<CardContent className="space-y-3 text-sm">
+  <div className="p-3 bg-muted/50 rounded">
+    <strong className="text-primary">Style Selection:</strong>
+    <p className="text-muted-foreground mt-1">Use "Photorealistic Human" or "Cinematic Portrait" styles for best human results</p>
+  </div>
+  <div className="p-3 bg-muted/50 rounded">
+    <strong className="text-primary">Detail Level:</strong>
+    <p className="text-muted-foreground mt-1">Set detail to "High" or "Ultra" for facial features and skin texture</p>
+  </div>
+  <div className="p-3 bg-muted/50 rounded">
+    <strong className="text-primary">Prompting: </strong>
+    <p className="text-muted-foreground mt-1">Be specific:  "30 year old woman with green eyes" works better than "person"</p>
+  </div>
+  <div className="p-3 bg-amber-500/10 rounded border border-amber-500/20">
+    <strong className="text-amber-600 dark:text-amber-400">⚠️ Video Creation:</strong>
+    <p className="text-muted-foreground mt-1">Video creation is currently unavailable</p>
+  </div>
+</CardContent>
+</Card>
+</div>
+</TabsContent>
+
+<TabsContent value="gallery">
+  <Card>
+    <CardHeader>
+      <div className="flex items-center justify-between">
+        <div>
+          <CardTitle className="flex items-center gap-2">
+            <ImageIcon className="h-5 w-5" />
+            Image Gallery
+          </CardTitle>
+          <CardDescription>Your saved AI-generated images</CardDescription>
+        </div>
+        <Button onClick={loadGallery} variant="outline" size="sm">
+          <Sparkles className="mr-2 h-4 w-4" />
+          Refresh
+        </Button>
+      </div>
+    </CardHeader>
+    <CardContent>
+      {isLoadingGallery ?  (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : gallery.length === 0 ? (
+        <div className="text-center py-12">
+          <ImageIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <p className="text-muted-foreground">No images in gallery yet</p>
+          <p className="text-sm text-muted-foreground">Generate and save images to see them here</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 md: grid-cols-3 lg:grid-cols-4 gap-4">
+          {gallery. map((img) => (
+            <Card key={img.id} className="overflow-hidden group relative">
+              <div className="aspect-square relative">
+                <img
+                  src={img.image_url}
+                  alt={img.prompt}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      const link = document.createElement('a');
+                      link.href = img. image_url;
+                      link.download = `${img.id}.png`;
+                      link.click();
+                    }}
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => handleDeleteFromGallery(img.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
-                <div className="p-3 bg-muted/50 rounded">
-                  <strong className="text-primary">Detail Level:</strong>
-                  <p className="text-muted-foreground mt-1">Set detail to "High" or "Ultra" for facial features and skin texture</p>
-                </div>
-                <div className="p-3 bg-muted/50 rounded">
-                  <strong className="text-primary">Prompting:</strong>
-                  <p className="text-muted-foreground mt-1">Be specific: "30 year old woman with green eyes" works better than "person"</p>
-                </div>
-                <div className="p-3 bg-amber-500/10 rounded border border-amber-500/20">
-                  <strong className="text-amber-600 dark:text-amber-400">⚠️ Video Creation:</strong>
-                  <p className="text-muted-foreground mt-1">Video creation is currently unavailable</p>
-                </div>
+              </div>
+              <CardContent className="p-2">
+                <p className="text-xs text-muted-foreground line-clamp-2">{img.prompt}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {new Date(img.created_at).toLocaleDateString()}
+                </p>
               </CardContent>
             </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="gallery">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <ImageIcon className="h-5 w-5" />
-                    Image Gallery
-                  </CardTitle>
-                  <CardDescription>Your saved AI-generated images</CardDescription>
-                </div>
-                <Button onClick={loadGallery} variant="outline" size="sm">
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Refresh
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {isLoadingGallery ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                </div>
-              ) : gallery.length === 0 ? (
-                <div className="text-center py-12">
-                  <ImageIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">No images in gallery yet</p>
-                  <p className="text-sm text-muted-foreground">Generate and save images to see them here</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {gallery.map((img) => (
-                    <Card key={img.id} className="overflow-hidden group relative">
-                      <div className="aspect-square relative">
-                        <img
-                          src={img.image_url}
-                          alt={img.prompt}
-                          className="w-full h-full object-cover"
-                        />
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => {
-                              const link = document.createElement('a');
-                              link.href = img.image_url;
-                              link.download = `${img.id}.png`;
-                              link.click();
-                            }}
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleDeleteFromGallery(img.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                      <CardContent className="p-2">
-                        <p className="text-xs text-muted-foreground line-clamp-2">{img.prompt}</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {new Date(img.created_at).toLocaleDateString()}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
+          ))}
+        </div>
+      )}
+    </CardContent>
+  </Card>
+</TabsContent>
+</Tabs>
+</div>
+);
 }

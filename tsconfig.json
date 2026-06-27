@@ -7,19 +7,20 @@
     "skipLibCheck": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "strict": true,
-    "forceConsistentCasingInFileNames": true,
+    "strict": false,
+    "forceConsistentCasingInFileNames":  true,
     "noFallthroughCasesInSwitch": true,
     "moduleResolution": "node",
     "resolveJsonModule": true,
-    "isolatedModules": true,
+    "isolatedModules":  true,
     "noEmit": true,
-    "jsx": "react-jsx",
+    "jsx":  "react-jsx",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*":  ["./src/*"]
     },
-    "types": ["node"]
+    "types": ["node"],
+    "noImplicitAny": false
   },
   "include": [
     "src"

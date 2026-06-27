@@ -1,23 +1,23 @@
-import { useState, useEffect } from "react";
-import { Flame, Loader2, AlertCircle } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Flame, Loader2, AlertCircle, Camera } from "lucide-react";
 import { PhotoGrid } from "@/components/PhotoGrid";
 import { PhotoUpload } from "@/components/PhotoUpload";
-import { CameraCapture } from "@/components/CameraCapture";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 
 export interface Photo {
-  id: string;
+  id:  string;
   url: string;
-  title?: string;
+  title? :  string;
   createdAt: string;
   width:  number;
   height: number;
-  saved?:  boolean;
-  user_id?:  string;
-  username?: string;
-  avatar_url?: string;
+  saved? :  boolean;
+  user_id? :  string;
+  username?:  string;
+  avatar_url?:  string;
 }
 
 interface RateLimit {
@@ -39,6 +39,8 @@ export default function PicturePalace() {
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   useEffect(() => {
     checkAuthAndLoadPhotos();
     const unsubscribe = subscribeToPhotos();
@@ -50,8 +52,8 @@ export default function PicturePalace() {
   const checkAuthAndLoadPhotos = async () => {
     setLoading(true);
     try {
-      const { data: { user }, error } = await supabase. auth.getUser();
-      
+      const { data:   { user }, error } = await supabase. auth.getUser();
+
       if (error || !user) {
         toast({
           title: "Authentication Required",
@@ -75,11 +77,10 @@ export default function PicturePalace() {
 
   const loadPhotos = async () => {
     try {
-      // Load ALL photos from ALL users
       const { data, error } = await supabase
         .from("gallery_photos")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending:  false });
 
       if (error) {
         console.error("Error loading photos:", error);
@@ -92,15 +93,19 @@ export default function PicturePalace() {
       }
 
       if (data && data.length > 0) {
-        const loadedPhotos:  Photo[] = data.map((p: any) => ({
-          id: p.id,
-          url: p.url,
-          title: p.title || undefined,
-          createdAt: p.created_at,
-          width: p.width || 600,
-          height: p.height || 400,
-          user_id: p.user_id,
-        }));
+        const loadedPhotos:  Photo[] = data
+          .filter((p:  any) => p.url && p.id) // Filter out invalid entries
+          .map((p:  any) => ({
+            id: p.id,
+            url: p.url,
+            title: p.title || undefined,
+            createdAt: p.created_at,
+            width: p.width || 600,
+            height: p.height || 400,
+            user_id: p.user_id,
+          }));
+        
+        console.log("Loaded photos:", loadedPhotos); // Debug log
         setPhotos(loadedPhotos);
         setSouls(loadedPhotos.length);
       } else {
@@ -111,7 +116,7 @@ export default function PicturePalace() {
       console.error("Failed to load photos:", error);
       toast({
         title: "Error",
-        description: "An error occurred while loading photos",
+        description:  "An error occurred while loading photos",
         variant: "destructive",
       });
     }
@@ -119,7 +124,7 @@ export default function PicturePalace() {
 
   const subscribeToPhotos = () => {
     const channel = supabase
-      . channel('gallery-photos-changes')
+      .channel('gallery-photos-changes')
       .on(
         'postgres_changes',
         {
@@ -138,7 +143,7 @@ export default function PicturePalace() {
     };
   };
 
-  const checkRateLimit = async (userId: string) => {
+  const checkRateLimit = async (userId:   string) => {
     try {
       const { data, error } = await (supabase as any)
         .from("gallery_rate_limits")
@@ -182,9 +187,9 @@ export default function PicturePalace() {
   };
 
   const handleUpload = async (files: File[]) => {
-    if (! currentUserId) {
+    if (!currentUserId) {
       toast({
-        title:  "Session Expired",
+        title:   "Session Expired",
         description: "Please log in again",
         variant: "destructive",
       });
@@ -205,7 +210,7 @@ export default function PicturePalace() {
     if (files.length > remainingUploads) {
       toast({
         title: "Too Many Files",
-        description: `You can only upload ${remainingUploads} more photo(s) today. `,
+        description: `You can only upload ${remainingUploads} more photo(s) today.`,
         variant: "destructive",
       });
       return;
@@ -214,12 +219,12 @@ export default function PicturePalace() {
     setUploading(true);
 
     try {
-      const uploadedPhotos:  Photo[] = [];
+      const uploadedPhotos:   Photo[] = [];
 
       for (const file of files) {
         if (!file.type.startsWith('image/')) {
           toast({
-            title: "Invalid File",
+            title:  "Invalid File",
             description: `${file.name} is not an image file`,
             variant: "destructive",
           });
@@ -228,7 +233,7 @@ export default function PicturePalace() {
 
         if (file.size > 10 * 1024 * 1024) {
           toast({
-            title: "File Too Large",
+            title:  "File Too Large",
             description: `${file.name} exceeds 10MB limit`,
             variant: "destructive",
           });
@@ -241,7 +246,7 @@ export default function PicturePalace() {
         const { error: uploadError } = await supabase.storage
           .from("gallery")
           .upload(fileName, file, {
-            cacheControl: '3600',
+            cacheControl:   '3600',
             upsert: false,
           });
 
@@ -264,7 +269,7 @@ export default function PicturePalace() {
           .insert({
             user_id: currentUserId,
             url: publicUrl,
-            title:  file.name. replace(/\.[^/.]+$/, ""),
+            title: file.name. replace(/\.[^/.]+$/, ""),
             width: 600,
             height: 400,
           })
@@ -286,22 +291,21 @@ export default function PicturePalace() {
             id: dbData.id,
             url: dbData.url,
             title: dbData. title || undefined,
-            createdAt:  dbData.created_at,
+            createdAt:   dbData.created_at,
             width: dbData.width || 600,
-            height: dbData.height || 400,
+            height:  dbData.height || 400,
             user_id: currentUserId,
           });
         }
       }
 
       if (uploadedPhotos.length > 0) {
-        // Update rate limit
         await (supabase as any)
           .from("gallery_rate_limits")
           .update({ upload_count: uploadCount + uploadedPhotos.length })
           .eq("user_id", currentUserId);
 
-        setUploadCount(prev => prev + uploadedPhotos. length);
+        setUploadCount(prev => prev + uploadedPhotos.length);
 
         toast({
           title: "Upload Successful",
@@ -326,17 +330,16 @@ export default function PicturePalace() {
     const photo = photos.find((p) => p.id === id);
     if (!photo) return;
 
-    if (! currentUserId) {
+    if (!currentUserId) {
       toast({
         title: "Session Expired",
         description: "Please log in again",
-        variant:  "destructive",
+        variant:   "destructive",
       });
       navigate("/auth");
       return;
     }
 
-    // Only allow users to delete their own photos
     if (photo.user_id !== currentUserId) {
       toast({
         title: "Permission Denied",
@@ -346,14 +349,42 @@ export default function PicturePalace() {
       return;
     }
 
+    // OPTIMISTIC UPDATE:  Remove from UI immediately
+    setPhotos(prevPhotos => prevPhotos.filter(p => p.id !== id));
+    setSouls(prev => prev - 1);
+
     try {
+      // Extract the file path from the URL
       const urlParts = photo.url.split('/gallery/');
+      
       if (urlParts.length > 1) {
         const filePath = urlParts[1];
-        await supabase.storage. from("gallery").remove([filePath]);
+        
+        console.log("Photo URL:", photo.url);
+        console.log("Attempting to delete file path:", filePath);
+        
+        // Delete from storage first and CHECK for errors
+        const { data: storageData, error: storageError } = await supabase.storage
+          . from("gallery")
+          .remove([filePath]);
+
+        if (storageError) {
+          console.error("Storage delete error:", storageError);
+          // Rollback optimistic update
+          await loadPhotos();
+          toast({
+            title: "Delete Failed",
+            description: `Failed to delete file from storage: ${storageError.message}`,
+            variant: "destructive",
+          });
+          return;
+        }
+
+        console.log("Storage deletion successful:", storageData);
       }
 
-      const { error:  dbError } = await supabase
+      // Only delete from database if storage deletion succeeded
+      const { error: dbError } = await supabase
         .from("gallery_photos")
         .delete()
         .eq("id", id)
@@ -361,9 +392,11 @@ export default function PicturePalace() {
 
       if (dbError) {
         console.error("Database delete error:", dbError);
+        // Rollback optimistic update
+        await loadPhotos();
         toast({
           title: "Delete Failed",
-          description: "Failed to delete photo",
+          description: "Failed to delete photo record",
           variant: "destructive",
         });
         return;
@@ -371,16 +404,19 @@ export default function PicturePalace() {
 
       toast({
         title: "Photo Deleted",
-        description:  "Photo removed from gallery",
+        description: "Photo and file removed completely",
       });
 
+      // Confirm deletion with fresh data from database
       await loadPhotos();
-    } catch (error) {
+    } catch (error:  any) {
       console.error("Delete failed:", error);
+      // Rollback optimistic update on error
+      await loadPhotos();
       toast({
-        title:  "Error",
-        description: "Failed to delete photo",
-        variant:  "destructive",
+        title:   "Error",
+        description: error?.message || "Failed to delete photo",
+        variant:   "destructive",
       });
     }
   };
@@ -392,19 +428,18 @@ export default function PicturePalace() {
     if (!currentUserId) {
       toast({
         title: "Session Expired",
-        description: "Please log in again",
+        description:  "Please log in again",
         variant:  "destructive",
       });
       navigate("/auth");
       return;
     }
 
-    // Only allow users to edit their own photos
     if (photo.user_id !== currentUserId) {
       toast({
         title: "Permission Denied",
         description: "You can only edit your own photos",
-        variant:  "destructive",
+        variant:   "destructive",
       });
       return;
     }
@@ -437,14 +472,34 @@ export default function PicturePalace() {
       toast({
         title: "Error",
         description: "Failed to update photo title",
-        variant: "destructive",
+        variant:   "destructive",
       });
     }
   };
 
+  const handleCameraClick = () => {
+    if (uploadCount >= uploadLimit) {
+      toast({
+        title: "Upload Limit Reached",
+        description: `You can only upload ${uploadLimit} photos per 24 hours.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      handleUpload(files);
+    }
+    e.target.value = '';
+  };
+
   if (loading) {
     return (
-      <div className="w-full min-h-screen flex items-center justify-center bg-background md:ml-64 lg:ml-72">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
           <p className="text-muted-foreground">Loading gallery...</p>
@@ -460,66 +515,79 @@ export default function PicturePalace() {
   const remainingUploads = uploadLimit - uploadCount;
 
   return (
-    <div className="w-full min-h-screen bg-gradient-to-br from-background via-background to-secondary/20 md:ml-64 lg:ml-72">
-      {/* Header */}
-      <div className="sticky top-0 z-10 backdrop-blur-md bg-card/80 border-b border-border shadow-lg">
-        <div className="px-4 md:px-6 lg:px-8 py-4 max-w-[1400px]">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            {/* Title Section */}
-            <div className="flex items-center gap-3">
-              <Flame className="h-8 w-8 text-primary animate-pulse" />
-              <div className="flex flex-col">
-                <h1 className="text-2xl font-bold text-foreground leading-tight">
+    <div className="min-h-screen w-full bg-gradient-to-br from-background via-background to-secondary/20 pt-16">
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileSelect}
+        accept="image/*"
+        capture="environment"
+        multiple
+        className="hidden"
+      />
+
+      <div className="w-full px-3 sm:px-4 md:px-6 lg:px-8 py-3 md:py-4">
+        <div className="w-full max-w-[1600px] mx-auto">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+            <div className="flex items-center gap-2 md:gap-3">
+              <Flame className="h-6 w-6 md:h-8 md:w-8 text-primary animate-pulse shrink-0" />
+              <div className="flex flex-col min-w-0">
+                <h1 className="text-xl sm:text-2xl font-bold text-foreground leading-tight truncate">
                   Picture Palace
                 </h1>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs sm:text-sm text-muted-foreground truncate">
                   Community photo gallery
                 </p>
               </div>
             </div>
 
-            {/* Actions Section */}
-            <div className="flex items-center gap-3 shrink-0 flex-wrap">
-              <CameraCapture 
-  onCapture={(file) => handleUpload([file])} 
-  disabled={uploading || uploadCount >= uploadLimit} 
-/>
+            <div className="flex items-center gap-2 md:gap-3 flex-wrap">
+              <Button
+                onClick={handleCameraClick}
+                disabled={uploading || uploadCount >= uploadLimit}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-1.5 md:gap-2 text-xs sm:text-sm"
+              >
+                <Camera className="h-3. 5 w-3.5 md:h-4 md:w-4" />
+                <span className="hidden xs:inline">Camera</span>
+              </Button>
+
               <PhotoUpload 
                 onUpload={handleUpload} 
                 disabled={uploading || uploadCount >= uploadLimit} 
               />
-              <div className="px-4 py-2 rounded-md bg-card border border-border flex items-center gap-2 text-sm shadow-sm">
-                <Flame className="h-4 w-4 text-primary" />
+              
+              <div className="px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-md bg-card border border-border flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm shadow-sm">
+                <Flame className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary shrink-0" />
                 <span className="font-semibold">{souls}</span>
-                <span className="text-muted-foreground">Photos</span>
+                <span className="text-muted-foreground hidden xs:inline">Photos</span>
               </div>
             </div>
           </div>
 
-          {/* Rate Limit Warning */}
           {remainingUploads <= 3 && remainingUploads > 0 && (
-            <div className="mt-3 p-3 bg-amber-500/10 border border-amber-500/20 rounded-md flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
-              <p className="text-sm text-amber-500 font-medium">
+            <div className="mt-2 md:mt-3 p-2 md:p-3 bg-amber-500/10 border border-amber-500/20 rounded-md flex items-center gap-2">
+              <AlertCircle className="h-3.5 w-3.5 md:h-4 md:w-4 text-amber-500 shrink-0" />
+              <p className="text-xs md:text-sm text-amber-500 font-medium">
                 {remainingUploads} upload{remainingUploads !== 1 ? 's' :  ''} remaining today
               </p>
             </div>
           )}
 
           {uploadCount >= uploadLimit && (
-            <div className="mt-3 p-3 bg-red-500/10 border border-red-500/20 rounded-md flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
-              <p className="text-sm text-red-500 font-medium">
-                Upload limit reached.  Try again in 24 hours.
+            <div className="mt-2 md:mt-3 p-2 md:p-3 bg-red-500/10 border border-red-500/20 rounded-md flex items-center gap-2">
+              <AlertCircle className="h-3.5 w-3.5 md:h-4 md: w-4 text-red-500 shrink-0" />
+              <p className="text-xs md:text-sm text-red-500 font-medium">
+                Upload limit reached.   Try again in 24 hours.
               </p>
             </div>
           )}
 
-          {/* Upload Status */}
           {uploading && (
-            <div className="mt-3 p-3 bg-primary/10 border border-primary/20 rounded-md flex items-center justify-center gap-2">
-              <Loader2 className="h-4 w-4 animate-spin text-primary" />
-              <p className="text-sm text-primary font-medium">
+            <div className="mt-2 md:mt-3 p-2 md:p-3 bg-primary/10 border border-primary/20 rounded-md flex items-center justify-center gap-2">
+              <Loader2 className="h-3.5 w-3.5 md:h-4 md:w-4 animate-spin text-primary" />
+              <p className="text-xs md: text-sm text-primary font-medium">
                 Uploading to gallery...
               </p>
             </div>
@@ -527,24 +595,25 @@ export default function PicturePalace() {
         </div>
       </div>
 
-      {/* Gallery Content */}
-      <main className="px-4 md:px-6 lg:px-8 py-6 max-w-[1400px]">
-        {photos.length === 0 ? (
-          <div className="text-center py-20">
-            <Flame className="h-16 w-16 mx-auto text-muted-foreground/50 mb-4" />
-            <h3 className="text-xl font-semibold text-foreground mb-2">No photos yet</h3>
-            <p className="text-muted-foreground mb-6">
-              Be the first to upload a photo! 
-            </p>
-          </div>
-        ) : (
-          <PhotoGrid 
-            photos={photos} 
-            onDelete={handleDelete} 
-            onUpdate={handleUpdate}
-            currentUserId={currentUserId}
-          />
-        )}
+      <main className="w-full px-3 sm:px-4 md:px-6 lg:px-8 py-4 md:py-6 pb-20 md:pb-6">
+        <div className="w-full max-w-[1600px] mx-auto">
+          {photos.length === 0 ? (
+            <div className="text-center py-12 md:py-20">
+              <Flame className="h-12 w-12 md:h-16 md:w-16 mx-auto text-muted-foreground/50 mb-3 md:mb-4" />
+              <h3 className="text-lg md:text-xl font-semibold text-foreground mb-2">No photos yet</h3>
+              <p className="text-sm md:text-base text-muted-foreground mb-4 md:mb-6">
+                Be the first to upload a photo! 
+              </p>
+            </div>
+          ) : (
+            <PhotoGrid 
+              photos={photos} 
+              onDelete={handleDelete} 
+              onUpdate={handleUpdate}
+              currentUserId={currentUserId}
+            />
+          )}
+        </div>
       </main>
     </div>
   );

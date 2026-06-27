@@ -14,7 +14,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface VideoUploadProps {
-  onUploadComplete?: () => void;
+  onUploadComplete?:  () => void;
 }
 
 export function VideoUpload({ onUploadComplete }: VideoUploadProps) {
@@ -46,12 +46,12 @@ export function VideoUpload({ onUploadComplete }: VideoUploadProps) {
 
   const fetchFollowerCount = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const { data: { user } } = await supabase. auth.getUser();
+      if (! user) return;
 
-      const { data, error } = await supabase.rpc('get_video_follower_count', {
-        user_id_param: user.id
-      });
+      const { data, error } = await (supabase as any).rpc('get_video_follower_count', {
+  user_id_param: user. id
+});
 
       if (!error && data !== null) {
         setFollowerCount(data);
@@ -63,9 +63,9 @@ export function VideoUpload({ onUploadComplete }: VideoUploadProps) {
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (! file) return;
 
-    if (!file.type.startsWith("video/")) {
+    if (! file.type.startsWith("video/")) {
       toast.error(t("upload.error.notVideo"));
       return;
     }
@@ -101,7 +101,7 @@ export function VideoUpload({ onUploadComplete }: VideoUploadProps) {
         }
       }
     };
-    video.src = preview;
+    video. src = preview;
   };
 
   const togglePlayPause = () => {
@@ -109,7 +109,7 @@ export function VideoUpload({ onUploadComplete }: VideoUploadProps) {
       if (isPlaying) {
         videoRef.current.pause();
       } else {
-        videoRef.current.play();
+        videoRef. current.play();
       }
       setIsPlaying(!isPlaying);
     }
@@ -128,7 +128,7 @@ export function VideoUpload({ onUploadComplete }: VideoUploadProps) {
   const removeTag = (tag: string) => {
     setFormData({
       ...formData,
-      tags: formData.tags.filter((t) => t !== tag),
+      tags: formData. tags.filter((t) => t !== tag),
     });
   };
 
@@ -138,7 +138,7 @@ export function VideoUpload({ onUploadComplete }: VideoUploadProps) {
       return;
     }
 
-    if (!formData.title.trim()) {
+    if (!formData.title. trim()) {
       toast.error("Please enter a title");
       return;
     }
@@ -149,10 +149,10 @@ export function VideoUpload({ onUploadComplete }: VideoUploadProps) {
       if (!user) throw new Error("Not authenticated");
 
       // Upload video
-      const fileExt = videoFile.name.split(".").pop();
+      const fileExt = videoFile.name.split(". ").pop();
       const filePath = `${user.id}/${Date.now()}.${fileExt}`;
 
-      const { error: uploadError } = await supabase.storage
+      const { error:  uploadError } = await supabase.storage
         .from("post-media")
         .upload(filePath, videoFile);
 
@@ -163,7 +163,7 @@ export function VideoUpload({ onUploadComplete }: VideoUploadProps) {
         .getPublicUrl(filePath);
 
       // Create post with metadata and duration
-      const { error: insertError } = await supabase.from("posts").insert({
+      const { error: insertError } = await (supabase as any).from("posts").insert({
         user_id: user.id,
         content: JSON.stringify({
           title: formData.title,
@@ -171,9 +171,12 @@ export function VideoUpload({ onUploadComplete }: VideoUploadProps) {
           tags: formData.tags,
         }),
         media_url: publicUrl,
-        media_type: "video",
+        media_type:  "video",
         post_type: "scream",
+        post_section: "sinagogue",
         video_duration: videoDuration,
+        privacy: "public",
+        visibility: "public",
       });
 
       if (insertError) throw insertError;
@@ -182,8 +185,9 @@ export function VideoUpload({ onUploadComplete }: VideoUploadProps) {
       setDialogOpen(false);
       resetForm();
       onUploadComplete?.();
-    } catch (error: any) {
-      toast.error(error.message);
+    } catch (error:  any) {
+      console.error("Upload error:", error);
+      toast.error(error.message || "Failed to upload video");
     } finally {
       setUploading(false);
     }
@@ -202,7 +206,7 @@ export function VideoUpload({ onUploadComplete }: VideoUploadProps) {
   };
 
   const videoCategories = [
-    { value: "lust-romance", label: "🔥 Lust - Romance & Erotica", sin: "Lust" },
+    { value:  "lust-romance", label: "🔥 Lust - Romance & Erotica", sin: "Lust" },
     { value: "lust-fashion", label: "🔥 Lust - Fashion & Beauty", sin: "Lust" },
     { value: "lust-dance", label: "🔥 Lust - Dance & Performance", sin: "Lust" },
     { value: "lust-music", label: "🔥 Lust - Music Videos", sin: "Lust" },
@@ -211,26 +215,26 @@ export function VideoUpload({ onUploadComplete }: VideoUploadProps) {
     { value: "gluttony-food", label: "🍷 Gluttony - Food & Cooking", sin: "Gluttony" },
     { value: "gluttony-travel", label: "🍷 Gluttony - Travel & Luxury", sin: "Gluttony" },
     { value: "gluttony-lifestyle", label: "🍷 Gluttony - Lifestyle Vlogs", sin: "Gluttony" },
-    { value: "gluttony-challenges", label: "🍷 Gluttony - Challenges & Over-the-Top", sin: "Gluttony" },
+    { value:  "gluttony-challenges", label: "🍷 Gluttony - Challenges & Over-the-Top", sin: "Gluttony" },
     { value: "gluttony-asmr", label: "🍷 Gluttony - ASMR / Sensory Overload", sin: "Gluttony" },
     
     { value: "greed-business", label: "💰 Greed - Business & Finance", sin: "Greed" },
     { value: "greed-tech", label: "💰 Greed - Tech Reviews & Unboxings", sin: "Greed" },
-    { value: "greed-gaming", label: "💰 Greed - Gaming Loot/Pay-to-Win", sin: "Greed" },
+    { value:  "greed-gaming", label: "💰 Greed - Gaming Loot/Pay-to-Win", sin: "Greed" },
     { value: "greed-collectibles", label: "💰 Greed - Collectibles & Mods", sin: "Greed" },
     { value: "greed-store", label: "💰 Greed - Prime Store / Monetized Streams", sin: "Greed" },
     
-    { value: "sloth-chill", label: "🛌 Sloth - Chill Vlogs", sin: "Sloth" },
+    { value:  "sloth-chill", label: "🛌 Sloth - Chill Vlogs", sin: "Sloth" },
     { value: "sloth-relaxation", label: "🛌 Sloth - Relaxation / Meditation / ASMR", sin: "Sloth" },
     { value: "sloth-podcasts", label: "🛌 Sloth - Longform Podcasts", sin: "Sloth" },
     { value: "sloth-ambient", label: "🛌 Sloth - Ambient / Lo-Fi Streams", sin: "Sloth" },
     { value: "sloth-background", label: "🛌 Sloth - Background Content", sin: "Sloth" },
     
-    { value: "wrath-action", label: "⚔️ Wrath - Action & War Films", sin: "Wrath" },
+    { value:  "wrath-action", label: "⚔️ Wrath - Action & War Films", sin: "Wrath" },
     { value: "wrath-horror", label: "⚔️ Wrath - Horror & Thrillers", sin: "Wrath" },
-    { value: "wrath-martial", label: "⚔️ Wrath - Martial Arts & Combat Sports", sin: "Wrath" },
+    { value:  "wrath-martial", label: "⚔️ Wrath - Martial Arts & Combat Sports", sin: "Wrath" },
     { value: "wrath-esports", label: "⚔️ Wrath - Esports & Competitive Gaming", sin: "Wrath" },
-    { value: "wrath-debates", label: "⚔️ Wrath - Debates & Heated Commentary", sin: "Wrath" },
+    { value:  "wrath-debates", label: "⚔️ Wrath - Debates & Heated Commentary", sin: "Wrath" },
     
     { value: "envy-celebrity", label: "👁️ Envy - Celebrity News & Gossip", sin: "Envy" },
     { value: "envy-reactions", label: "👁️ Envy - Reaction Videos", sin: "Envy" },
@@ -268,8 +272,8 @@ export function VideoUpload({ onUploadComplete }: VideoUploadProps) {
           <Alert className="bg-primary/10 border-primary/30">
             <Users className="h-4 w-4 text-primary" />
             <AlertDescription className="ml-2">
-              <span className="font-semibold">{followerCount.toLocaleString()}</span> {t("upload.disciples")}
-              {followerCount >= 6000 ? (
+              <span className="font-semibold">{followerCount. toLocaleString()}</span> {t("upload.disciples")}
+              {followerCount >= 6000 ?  (
                 <span className="ml-2 text-primary">✓ {t("upload.legionUnlocked")}</span>
               ) : (
                 <span className="ml-2 text-muted-foreground">
@@ -280,10 +284,10 @@ export function VideoUpload({ onUploadComplete }: VideoUploadProps) {
           </Alert>
 
           {/* Video Upload Area */}
-          {!videoPreview ? (
+          {!videoPreview ?  (
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="relative border-2 border-dashed border-primary/30 rounded-lg p-12 text-center cursor-pointer hover:border-primary/50 transition-all bg-gradient-to-br from-black to-primary/5"
+              className="relative border-2 border-dashed border-primary/30 rounded-lg p-12 text-center cursor-pointer hover:border-primary/50 transition-all bg-linear-to-br from-black to-primary/5"
             >
               <input
                 ref={fileInputRef}
@@ -298,13 +302,13 @@ export function VideoUpload({ onUploadComplete }: VideoUploadProps) {
                 {t("upload.clickOrDrag")}
               </p>
               <p className="text-xs text-muted-foreground mt-2">
-                {followerCount >= 6000 ? t("upload.maxSize5min") : t("upload.maxSize60sec")}
+                {followerCount >= 6000 ?  t("upload.maxSize5min") : t("upload.maxSize60sec")}
               </p>
             </div>
           ) : (
             <div className="relative rounded-lg overflow-hidden bg-black border-2 border-primary/50">
               {/* Video Preview */}
-              <div className="relative aspect-[9/16] max-h-96">
+              <div className="relative aspect-9/16 max-h-96">
                 <video
                   ref={videoRef}
                   src={videoPreview}
@@ -320,10 +324,10 @@ export function VideoUpload({ onUploadComplete }: VideoUploadProps) {
                       @keyframes blood-drip {
                         0% {
                           transform: translateY(-100%);
-                          opacity: 0.8;
+                          opacity: 0. 8;
                         }
                         100% {
-                          transform: translateY(100vh);
+                          transform:  translateY(100vh);
                           opacity: 0;
                         }
                       }
@@ -331,7 +335,7 @@ export function VideoUpload({ onUploadComplete }: VideoUploadProps) {
                         position: absolute;
                         width: 3px;
                         height: 20px;
-                        background: linear-gradient(to bottom, transparent, #dc143c);
+                        background:  linear-gradient(to bottom, transparent, #dc143c);
                         animation: blood-drip 3s linear infinite;
                       }
                     `}</style>
@@ -349,7 +353,7 @@ export function VideoUpload({ onUploadComplete }: VideoUploadProps) {
                 )}
 
                 {/* Ambient Vignette */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30 pointer-events-none" />
+                <div className="absolute inset-0 bg-linear-to-t from-black/60 via-transparent to-black/30 pointer-events-none" />
 
                 {/* Play/Pause Button */}
                 <button
@@ -371,7 +375,7 @@ export function VideoUpload({ onUploadComplete }: VideoUploadProps) {
                   variant="ghost"
                   size="icon"
                   className="bg-black/60 hover:bg-black/80 backdrop-blur-sm"
-                  onClick={() => setShowBloodOverlay(!showBloodOverlay)}
+                  onClick={() => setShowBloodOverlay(! showBloodOverlay)}
                 >
                   <Droplet className={showBloodOverlay ? "text-primary" : "text-white/50"} />
                 </Button>
@@ -397,7 +401,7 @@ export function VideoUpload({ onUploadComplete }: VideoUploadProps) {
             <Label>{t("upload.titleLabel")} *</Label>
             <Input
               value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, title: e. target.value })}
               placeholder={t("upload.titlePlaceholder")}
               className="border-primary/30"
             />
@@ -411,7 +415,7 @@ export function VideoUpload({ onUploadComplete }: VideoUploadProps) {
                 <SelectValue placeholder={t("upload.categoryPlaceholder")} />
               </SelectTrigger>
               <SelectContent className="max-h-80">
-                {videoCategories.map((cat) => (
+                {videoCategories. map((cat) => (
                   <SelectItem key={cat.value} value={cat.value}>
                     {cat.label}
                   </SelectItem>
@@ -422,7 +426,7 @@ export function VideoUpload({ onUploadComplete }: VideoUploadProps) {
 
           {/* Content Description */}
           <div>
-            <Label>{t("upload.descriptionLabel")}</Label>
+            <Label>{t("upload. descriptionLabel")}</Label>
             <Textarea
               value={formData.chant}
               onChange={(e) => setFormData({ ...formData, chant: e.target.value })}
@@ -449,7 +453,7 @@ export function VideoUpload({ onUploadComplete }: VideoUploadProps) {
             </div>
             {formData.tags.length > 0 && (
               <div className="flex flex-wrap gap-2">
-                {formData.tags.map((tag) => (
+                {formData.tags. map((tag) => (
                   <Badge
                     key={tag}
                     variant="secondary"
@@ -472,7 +476,7 @@ export function VideoUpload({ onUploadComplete }: VideoUploadProps) {
             size="lg"
           >
             <Flame className="mr-2 h-5 w-5" />
-            {uploading ? t("upload.uploading") : t("upload.unleashButton")}
+            {uploading ? t("upload. uploading") : t("upload.unleashButton")}
           </Button>
         </div>
       </DialogContent>

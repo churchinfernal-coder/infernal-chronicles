@@ -29,13 +29,15 @@ interface MediaFile {
   preview: string;
   type: 'image' | 'video';
   uploading: boolean;
-  progress: number;
-  url?:  string;
+  progress:  number;
+  url?: string;
 }
 
 const MAX_IMAGES = 10;
 const MAX_VIDEO_SIZE = 50 * 1024 * 1024;
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
+const RATE_LIMIT_POSTS = 10;
+const RATE_LIMIT_WINDOW_HOURS = 1;
 
 export function CreatePost({ onPostCreated }: CreatePostProps) {
   const [user, setUser] = useState<any>(null);
@@ -50,50 +52,74 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
   const videoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetchUserData();
-    checkRateLimit();
+    const initializeComponent = async () => {
+      await fetchUserData();
+      await checkRateLimit();
+    };
+    initializeComponent();
   }, []);
 
   const fetchUserData = async () => {
-    const { data: { user: currentUser } } = await supabase.auth.getUser();
-    if (currentUser) {
+    try {
+      const { data: { user: currentUser }, error:  authError } = await supabase. auth.getUser();
+      if (authError || !currentUser) {
+        console.error("Auth error:", authError);
+        return;
+      }
+
       setUser(currentUser);
       
-      const { data: profileData } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from("profiles")
         .select("*")
         .eq("user_id", currentUser.id)
         .single();
+
+      if (profileError) {
+        console.error("Profile fetch error:", profileError);
+        return;
+      }
       
       setProfile(profileData);
+    } catch (error) {
+      console.error("Error fetching user data:", error);
     }
   };
 
   const checkRateLimit = async () => {
-    const { data: { user: currentUser } } = await supabase.auth.getUser();
-    if (!currentUser) return;
+    try {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) return;
 
-    const { data, error } = await supabase
-      .from("post_rate_limits")
-      .select("*")
-      .eq("user_id", currentUser. id)
-      .single();
+      const { data, error } = await (supabase as any).from("post_rate_limits")
+        .select("*")
+        .eq("user_id", currentUser.id)
+        .single();
 
-    if (data) {
-      const windowStart = new Date((data as any).window_start);
-      const now = new Date();
-      const hoursPassed = (now.getTime() - windowStart.getTime()) / (1000 * 60 * 60);
-
-      if (hoursPassed >= 1) {
-        setRateLimitInfo({ count: 0, remaining: 10 });
-      } else {
-        setRateLimitInfo({ 
-          count: (data as any).post_count, 
-          remaining: Math.max(0, 10 - (data as any).post_count) 
-        });
+      if (error && error.code !== "PGRST116") {
+        console.error("Rate limit check error:", error);
+        return;
       }
-    } else {
-      setRateLimitInfo({ count: 0, remaining: 10 });
+
+      if (data) {
+        const windowStart = new Date(data.window_start);
+        const now = new Date();
+        const hoursPassed = (now. getTime() - windowStart.getTime()) / (1000 * 60 * 60);
+
+        if (hoursPassed >= RATE_LIMIT_WINDOW_HOURS) {
+          setRateLimitInfo({ count: 0, remaining: RATE_LIMIT_POSTS });
+        } else {
+          setRateLimitInfo({ 
+            count: data.post_count || 0, 
+            remaining:  Math.max(0, RATE_LIMIT_POSTS - (data.post_count || 0)) 
+          });
+        }
+      } else {
+        setRateLimitInfo({ count: 0, remaining:  RATE_LIMIT_POSTS });
+      }
+    } catch (error) {
+      console.error("Error checking rate limit:", error);
+      setRateLimitInfo({ count: 0, remaining: RATE_LIMIT_POSTS });
     }
   };
 
@@ -131,47 +157,58 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
       }
     }
 
-    const newMedia:  MediaFile[] = await Promise.all(
-      files. map(async (file) => {
-        const preview = await new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.readAsDataURL(file);
-        });
+    try {
+      const newMedia:  MediaFile[] = await Promise.all(
+        files. map(async (file) => {
+          const preview = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader. onloadend = () => resolve(reader.result as string);
+            reader.onerror = () => reject(new Error("Failed to read file"));
+            reader.readAsDataURL(file);
+          });
 
-        return {
-          file,
-          preview,
-          type: file.type. startsWith("image/") ? 'image' : 'video',
-          uploading: false,
-          progress: 0
-        };
-      })
-    );
+          return {
+            file,
+            preview,
+            type:  file.type. startsWith("image/") ? 'image' : 'video',
+            uploading: false,
+            progress: 0
+          };
+        })
+      );
 
-    setMediaFiles(prev => [...prev, ...newMedia]);
-    
-    if (fileInputRef.current) fileInputRef.current.value = '';
-    if (videoInputRef.current) videoInputRef.current.value = '';
+      setMediaFiles(prev => [...prev, ...newMedia]);
+      
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      if (videoInputRef.current) videoInputRef.current.value = '';
+    } catch (error) {
+      console.error("Error processing media files:", error);
+      toast.error("Failed to process media files");
+    }
   };
 
   const removeMedia = (index: number) => {
     setMediaFiles(prev => {
       const updated = [...prev];
-      URL.revokeObjectURL(updated[index].preview);
+      const revoked = updated[index];
+      if (revoked && revoked.preview) {
+        URL.revokeObjectURL(revoked.preview);
+      }
       updated.splice(index, 1);
       return updated;
     });
   };
 
   const uploadMedia = async (media: MediaFile, index: number): Promise<string> => {
-    const fileExt = media.file.name. split(". ").pop();
+    const fileExt = media.file.name. split(". ").pop() || "tmp";
     const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
 
     setMediaFiles(prev => {
       const updated = [...prev];
-      updated[index].uploading = true;
-      updated[index].progress = 0;
+      if (updated[index]) {
+        updated[index].uploading = true;
+        updated[index].progress = 0;
+      }
       return updated;
     });
 
@@ -209,21 +246,30 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
 
       setMediaFiles(prev => {
         const updated = [...prev];
-        updated[index].uploading = false;
-        updated[index].progress = 100;
-        updated[index].url = publicUrl;
+        if (updated[index]) {
+          updated[index].uploading = false;
+          updated[index].progress = 100;
+          updated[index].url = publicUrl;
+        }
         return updated;
       });
 
       return publicUrl;
     } catch (err) {
       clearInterval(progressInterval);
+      setMediaFiles(prev => {
+        const updated = [...prev];
+        if (updated[index]) {
+          updated[index].uploading = false;
+        }
+        return updated;
+      });
       throw err;
     }
   };
 
   const handleSubmit = async () => {
-    if (!content. trim() && mediaFiles.length === 0) {
+    if (!content.trim() && mediaFiles.length === 0) {
       toast.error("Please add content or media");
       return;
     }
@@ -233,12 +279,18 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
       return;
     }
 
-    const { data: canPost } = await (supabase as any).rpc('check_post_rate_limit', {
-      p_user_id: user.id
-    });
+    try {
+      const { data: canPost } = await (supabase as any).rpc('check_post_rate_limit', {
+        p_user_id: user.id
+      });
 
-    if (!canPost) {
-      toast.error("Rate limit reached. Maximum 10 posts per hour.");
+      if (!canPost) {
+        toast.error(`Rate limit reached. Maximum ${RATE_LIMIT_POSTS} posts per ${RATE_LIMIT_WINDOW_HOURS} hour. `);
+        return;
+      }
+    } catch (error) {
+      console.error("Rate limit check error:", error);
+      toast.error("Failed to verify rate limit");
       return;
     }
 
@@ -251,7 +303,7 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
         const media = mediaFiles[i];
         
         if (media.type === 'video' && media.file.size > MAX_VIDEO_SIZE) {
-          toast.error(`Video is too large.  Maximum 50MB. `);
+          toast.error(`Video is too large. Maximum 50MB. `);
           setUploading(false);
           return;
         }
@@ -264,9 +316,9 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
 
         try {
           const url = await uploadMedia(media, i);
-          uploadedMediaData.push({
+          uploadedMediaData. push({
             url,
-            type: media.type,
+            type:  media.type,
             duration: media.type === 'video' ? 0 : undefined
           });
         } catch (uploadError:  any) {
@@ -281,19 +333,21 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
       
       if (isAnonymous) {
         finalContent = JSON.stringify({
-          text: content.trim(),
+          text: content. trim(),
           anonymous: true
         });
       }
 
       const postData:  any = {
-        user_id: user.id,
+        user_id:  user.id,
         content: finalContent,
         post_type: postType,
+        post_section: "feed",
         visibility: "public",
+        privacy: "public",
         media_files: uploadedMediaData. length > 0 ? uploadedMediaData : null,
         media_url: uploadedMediaData[0]?.url || null,
-        media_type:  uploadedMediaData[0]?. type || null
+        media_type: uploadedMediaData[0]?.type || null
       };
 
       const { error:  postError } = await (supabase as any)
@@ -320,29 +374,36 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
     }
   };
 
-  const isVideoPost = mediaFiles.some(m => m. type === 'video');
+  const isVideoPost = mediaFiles.some(m => m.type === 'video');
   const canAddMore = ! isVideoPost && mediaFiles.length < MAX_IMAGES;
 
   return (
     <div className="bg-black/50 backdrop-blur-xl border border-primary/20 rounded-lg p-4 space-y-4">
-      {rateLimitInfo && rateLimitInfo.remaining <= 2 && (
+      {rateLimitInfo && rateLimitInfo.remaining <= 2 && rateLimitInfo.remaining > 0 && (
         <div className="flex items-start gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-xs text-amber-500">
           <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
           <span>{rateLimitInfo.remaining} posts remaining this hour</span>
         </div>
       )}
 
+      {rateLimitInfo && rateLimitInfo.remaining === 0 && (
+        <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-500">
+          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+          <span>Rate limit reached. Try again after 1 hour.</span>
+        </div>
+      )}
+
       <div className="flex gap-3">
         <Avatar className="h-10 w-10 shrink-0">
-          {isAnonymous ? (
+          {isAnonymous ?  (
             <AvatarFallback className="bg-muted text-muted-foreground">
               <EyeOff className="h-5 w-5" />
             </AvatarFallback>
           ) : (
             <>
-              <AvatarImage src={profile?.avatar_url || ""} alt={profile?.username || "User"} />
+              <AvatarImage src={profile?. avatar_url || ""} alt={profile?.username || "User"} />
               <AvatarFallback className="bg-primary/20 text-primary">
-                {profile?.username?.charAt(0)?. toUpperCase() || "U"}
+                {profile?.username?. charAt(0)?.toUpperCase() || "U"}
               </AvatarFallback>
             </>
           )}
@@ -429,7 +490,7 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
                     />
                   ) : (
                     <video 
-                      src={media. preview} 
+                      src={media.preview} 
                       className="w-full h-full object-cover" 
                       muted
                       playsInline
@@ -444,7 +505,7 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
                     </div>
                   )}
 
-                  {! uploading && (
+                  {!uploading && (
                     <button
                       onClick={() => removeMedia(index)}
                       className="absolute top-1 right-1 p-1 bg-black/80 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
@@ -475,7 +536,7 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
                   variant="ghost"
                   size="sm"
                   className="gap-2"
-                  disabled={uploading || isVideoPost || ! canAddMore}
+                  disabled={uploading || isVideoPost || !canAddMore}
                   asChild
                 >
                   <span className="cursor-pointer">
@@ -529,14 +590,14 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
               </Button>
               <Button
                 onClick={handleSubmit}
-                disabled={uploading || (! content.trim() && mediaFiles.length === 0) || (rateLimitInfo?. remaining === 0)}
+                disabled={uploading || (! content.trim() && mediaFiles.length === 0) || (rateLimitInfo?.remaining === 0)}
                 size="sm"
                 className="gap-2"
               >
                 {uploading ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Posting...
+                    Posting... 
                   </>
                 ) : (
                   <>

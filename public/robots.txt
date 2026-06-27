@@ -1,14 +1,25 @@
+﻿# Infernal Church of Satan (I.C.O.S) - Robots.txt
+User-agent: *
+Allow: /landing/
+Allow: /
+
+# Sitemap
+Sitemap: https://infernalsocial.com/sitemap.xml
+
+# Crawl-delay (be nice to servers)
+Crawl-delay: 1
+
+# Disallow admin paths
+Disallow: /admin/
+Disallow: /api/
+Disallow: */private/*
+
+# Allow all search engines
 User-agent: Googlebot
 Allow: /
 
 User-agent: Bingbot
 Allow: /
 
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
-
-User-agent: *
+User-agent: Slurp
 Allow: /

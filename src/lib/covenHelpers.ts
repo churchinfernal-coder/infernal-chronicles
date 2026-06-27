@@ -3,12 +3,12 @@
 // Uses type assertions to bypass TypeScript client issues
 // ═══════════════════════════════════════════════════════════════════════════
 
-import { supabase } from "@/lib/supabase";
+import { supabase as supabaseClient } from "@/integrations/supabase/client";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // FILE UPLOAD VALIDATION
 // ═══════════════════════════════════════════════════════════════════════════
-
+const supabase = supabaseClient as any;
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];

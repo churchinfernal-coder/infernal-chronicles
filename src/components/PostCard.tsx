@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,25 +39,25 @@ import {
 interface MediaFile {
   url: string;
   type: 'image' | 'video';
-  duration?:  number | null;
+  duration? :  number | null;
 }
 
 interface PostCardProps {
   post: {
     id: string;
     user_id: string;
-    content:  string;
-    created_at:  string;
-    post_type?:  string;
+    content:   string;
+    created_at:   string;
+    post_type? :  string;
     media_url?: string | null;
-    media_type?:  string | null;
+    media_type? :  string | null;
     media_files?: string | null;
     profiles?: {
-      username:  string | null;
-      avatar_url:  string | null;
+      username:   string | null;
+      avatar_url:   string | null;
     };
   };
-  currentUserId?:  string;
+  currentUserId? :  string;
   onPostUpdated?: () => void;
   onPostDeleted?: () => void;
   reactionsCount?: number;
@@ -66,10 +67,10 @@ interface PostCardProps {
 const reactionEmojis = [
   { emoji: "🩸", type: "blood", label: "Blood" },
   { emoji: "🕷️", type: "spider", label: "Spider" },
-  { emoji: "🔥", type: "fire", label: "Fire" },
+  { emoji: "🔥", type: "fire", label:  "Fire" },
   { emoji: "😈", type: "demon", label: "Demon" },
   { emoji: "🪦", type: "grave", label: "Grave" },
-  { emoji: "666", type: "666", label:  "666" },
+  { emoji: "666", type: "666", label:   "666" },
 ];
 
 const postTypeStyles = {
@@ -81,14 +82,14 @@ const postTypeStyles = {
     label: "Whisper"
   },
   scream: {
-    icon:  Zap,
+    icon:   Zap,
     bgClass: "bg-black/50 backdrop-blur-xl",
     borderClass: "border-red-500/30",
     textClass: "text-red-400",
     label: "Scream"
   },
   incantation: {
-    icon:  Skull,
+    icon:   Skull,
     bgClass: "bg-black/50 backdrop-blur-xl",
     borderClass: "border-purple-500/30",
     textClass: "text-purple-400",
@@ -108,10 +109,10 @@ const parsePostContent = (content: string) => {
     };
   } catch {
     return {
-      title: "",
+      title:  "",
       chant: content,
       tags: [],
-      images: [],
+      images:  [],
       anonymous: false
     };
   }
@@ -120,17 +121,14 @@ const parsePostContent = (content: string) => {
 const parseMediaFiles = (mediaFiles: string | null | undefined | any): MediaFile[] => {
   if (!mediaFiles) return [];
   
-  // If it's already an array (Supabase auto-parsed it)
   if (Array.isArray(mediaFiles)) {
     return mediaFiles;
   }
   
-  // If it's an object (sometimes Supabase returns JSONB as object)
   if (typeof mediaFiles === 'object') {
     return Array.isArray(mediaFiles) ? mediaFiles : [];
   }
   
-  // If it's a string, parse it
   try {
     const parsed = JSON. parse(mediaFiles);
     return Array.isArray(parsed) ? parsed : [];
@@ -140,6 +138,7 @@ const parseMediaFiles = (mediaFiles: string | null | undefined | any): MediaFile
 };
 
 export function PostCard({ post, currentUserId, onPostUpdated, onPostDeleted }: PostCardProps) {
+  const navigate = useNavigate();
   const [userReaction, setUserReaction] = useState<string | null>(null);
   const [reactions, setReactions] = useState<Record<string, number>>({});
   const [pulsingReaction, setPulsingReaction] = useState<string | null>(null);
@@ -161,15 +160,15 @@ export function PostCard({ post, currentUserId, onPostUpdated, onPostDeleted }: 
 
   const postType = (post.post_type || "whisper") as keyof typeof postTypeStyles;
   const typeStyle = postTypeStyles[postType];
-  const TypeIcon = typeStyle.icon;
+  const TypeIcon = typeStyle. icon;
 
-  const { title, chant, tags, images:  legacyImages, anonymous } = parsePostContent(post.content);
+  const { title, chant, tags, images:   legacyImages, anonymous } = parsePostContent(post.content);
   
-  const mediaFiles = parseMediaFiles(post.media_files);
+  const mediaFiles = parseMediaFiles(post. media_files);
   
-  const allMediaFiles:  MediaFile[] = [
+  const allMediaFiles:   MediaFile[] = [
     ...mediaFiles,
-    ...legacyImages. map((url:  string) => ({ url, type: 'image' as const }))
+    ...legacyImages. map((url:   string) => ({ url, type: 'image' as const }))
   ];
   
   if (allMediaFiles.length === 0 && post.media_url) {
@@ -219,7 +218,7 @@ export function PostCard({ post, currentUserId, onPostUpdated, onPostDeleted }: 
           table: "post_reactions",
           filter: `post_id=eq.${post.id}`,
         },
-        (payload:  any) => {
+        (payload:   any) => {
           fetchReactions();
           
           if (payload.eventType === 'INSERT' && payload.new?. reaction_type === '666') {
@@ -232,22 +231,22 @@ export function PostCard({ post, currentUserId, onPostUpdated, onPostDeleted }: 
       .subscribe();
 
     return () => {
-      supabase. removeChannel(channel);
+      supabase.removeChannel(channel);
     };
   };
 
   const fetchReactions = async () => {
-    const { data:  { user } } = await supabase.auth.getUser();
+    const { data:   { user } } = await supabase. auth.getUser();
     
-    const { data:  allReactions } = await supabase
+    const { data:   allReactions } = await supabase
       .from("post_reactions")
       .select("reaction_type, user_id")
       .eq("post_id", post.id);
 
     if (allReactions) {
-      const counts:  Record<string, number> = {};
+      const counts:   Record<string, number> = {};
       (allReactions as Array<{ reaction_type: string; user_id: string }>).forEach((r) => {
-        counts[r.reaction_type] = (counts[r.reaction_type] || 0) + 1;
+        counts[r. reaction_type] = (counts[r.reaction_type] || 0) + 1;
       });
       setReactions(counts);
 
@@ -259,7 +258,7 @@ export function PostCard({ post, currentUserId, onPostUpdated, onPostDeleted }: 
   };
 
   const fetchPitchforks = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data:  { user } } = await supabase.auth.getUser();
     
     const { data: pitchforks } = await supabase
       .from("post_reactions")
@@ -299,7 +298,7 @@ export function PostCard({ post, currentUserId, onPostUpdated, onPostDeleted }: 
       } else {
         const { error } = await supabase. from("post_reactions").insert({
           post_id: post. id,
-          user_id:  user.id,
+          user_id:   user.id,
           reaction_type: "pitchfork",
         } as any);
 
@@ -307,7 +306,7 @@ export function PostCard({ post, currentUserId, onPostUpdated, onPostDeleted }: 
         setHasPitchforked(true);
         setPitchforkCount(prev => prev + 1);
       }
-    } catch (error:  any) {
+    } catch (error:   any) {
       toast.error(error.message);
     }
   };
@@ -352,7 +351,7 @@ export function PostCard({ post, currentUserId, onPostUpdated, onPostDeleted }: 
 
         const { error } = await supabase.from("post_reactions").insert({
           post_id: post.id,
-          user_id: user.id,
+          user_id:  user.id,
           reaction_type: reactionType,
         } as any);
 
@@ -361,7 +360,7 @@ export function PostCard({ post, currentUserId, onPostUpdated, onPostDeleted }: 
       }
 
       fetchReactions();
-    } catch (error: any) {
+    } catch (error:  any) {
       toast.error(error.message);
     }
   };
@@ -372,7 +371,7 @@ export function PostCard({ post, currentUserId, onPostUpdated, onPostDeleted }: 
   };
 
   const handleUpdatePost = async () => {
-    if (!editContent.trim()) {
+    if (! editContent.trim()) {
       toast.error("Post content cannot be empty");
       return;
     }
@@ -442,6 +441,16 @@ export function PostCard({ post, currentUserId, onPostUpdated, onPostDeleted }: 
     }
   };
 
+  const handleProfileClick = (e: React.MouseEvent) => {
+  e.stopPropagation();
+  if (! anonymous && post.profiles?.username) {
+    console.log("Navigating to:", `/profile/${post.profiles.username}`);
+    navigate(`/profile/${post.profiles.username}`);
+  } else {
+    console.log("Cannot navigate - Anonymous:", anonymous, "Username:", post.profiles?.username);
+  }
+};
+
   const openImageModal = (startIndex: number) => {
     setModalImageIndex(startIndex);
     setShowImageModal(true);
@@ -459,14 +468,17 @@ export function PostCard({ post, currentUserId, onPostUpdated, onPostDeleted }: 
     <>
       <div className={`${typeStyle.bgClass} border ${typeStyle.borderClass} rounded-lg p-4 hover:border-primary/50 transition-all shadow-lg relative overflow-hidden`}>
         <div className="relative flex gap-3">
-          {anonymous ?  (
+          {anonymous ?   (
             <Avatar>
               <AvatarFallback className="bg-muted text-muted-foreground">
                 <EyeOff className="h-5 w-5" />
               </AvatarFallback>
             </Avatar>
           ) : (
-            <Avatar>
+            <Avatar 
+              className="cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={handleProfileClick}
+            >
               <AvatarImage src={post.profiles?.avatar_url || ""} />
               <AvatarFallback className="bg-primary/20 text-primary">
                 {post.profiles?.username?.[0]?.toUpperCase() || "U"}
@@ -476,7 +488,10 @@ export function PostCard({ post, currentUserId, onPostUpdated, onPostDeleted }: 
           
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span className="font-semibold text-foreground truncate">
+              <span 
+                className={`font-semibold text-foreground truncate ${! anonymous ?  'cursor-pointer hover:text-primary transition-colors' : ''}`}
+                onClick={handleProfileClick}
+              >
                 {anonymous ? "Anonymous" : (post.profiles?.username || "Anonymous")}
               </span>
               <span className="text-sm text-muted-foreground">·</span>
@@ -518,7 +533,7 @@ export function PostCard({ post, currentUserId, onPostUpdated, onPostDeleted }: 
 
             {tags.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-4">
-                {tags.map((tag:  string, i: number) => (
+                {tags.map((tag:   string, i:  number) => (
                   <Badge key={i} variant="outline" className="text-xs">
                     #{tag}
                   </Badge>
@@ -658,8 +673,8 @@ export function PostCard({ post, currentUserId, onPostUpdated, onPostDeleted }: 
                 
                 <span 
                   className={`relative text-2xl transition-transform duration-300 ${
-                    hasPitchforked ?  "scale-110" : "group-hover:scale-110"
-                  } ${isPitchforkPulsing ? "animate-bounce" :  ""}`}
+                    hasPitchforked ?   "scale-110" : "group-hover:scale-110"
+                  } ${isPitchforkPulsing ? "animate-bounce" :   ""}`}
                 >
                   🔱
                 </span>
@@ -671,7 +686,7 @@ export function PostCard({ post, currentUserId, onPostUpdated, onPostDeleted }: 
                 </span>
 
                 <span className={`relative text-sm font-medium transition-colors ${
-                  hasPitchforked ?  "text-primary" : "text-muted-foreground group-hover:text-foreground"
+                  hasPitchforked ?   "text-primary" : "text-muted-foreground group-hover:text-foreground"
                 }`}>
                   {pitchforkCount === 1 ? "Pitchfork" : "Pitchforks"}
                 </span>
@@ -754,12 +769,12 @@ export function PostCard({ post, currentUserId, onPostUpdated, onPostDeleted }: 
           <DialogHeader>
             <DialogTitle>Edit Post</DialogTitle>
             <DialogDescription>
-              Make changes to your post content. 
+              Make changes to your post content.  
             </DialogDescription>
           </DialogHeader>
           <Textarea
             value={editContent}
-            onChange={(e) => setEditContent(e.target.value)}
+            onChange={(e) => setEditContent(e.target. value)}
             placeholder="Edit your post..."
             className="min-h-[200px]"
             maxLength={5000}
@@ -780,7 +795,7 @@ export function PostCard({ post, currentUserId, onPostUpdated, onPostDeleted }: 
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone.  This will permanently delete your post and all its reactions and comments.
+              This action cannot be undone.   This will permanently delete your post and all its reactions and comments.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -790,7 +805,7 @@ export function PostCard({ post, currentUserId, onPostUpdated, onPostDeleted }: 
               disabled={isDeleting}
               className="bg-red-600 hover:bg-red-700"
             >
-              {isDeleting ? "Deleting..." :  "Delete Post"}
+              {isDeleting ? "Deleting..." :   "Delete Post"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -21,7 +21,8 @@ max_client_conn = 100
 
 [realtime]
 enabled = true
-ip_version = "ipv4"
+ip_version = "IPv4"
+
 
 [studio]
 enabled = true
@@ -78,9 +79,6 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.ai-suggest-edits]
-verify_jwt = true
-
-[functions.ai-apply-fix]
 verify_jwt = true
 
 [functions.ai-cinematic-generate]

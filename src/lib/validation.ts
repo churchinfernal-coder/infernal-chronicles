@@ -1,4 +1,4 @@
-﻿import { z } from "zod";
+import { z } from "zod";
 
 export const postSchema = z. object({
   content: z. string().min(1, "Post cannot be empty"). max(5000, "Max 5000 characters"),

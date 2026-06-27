@@ -1,4 +1,4 @@
-﻿import { toast } from "sonner";
+import { toast } from "sonner";
 
 export function handleError(error: any, context: string = "An error occurred") {
   console.error(`[${context}]`, error);

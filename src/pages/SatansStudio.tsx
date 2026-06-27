@@ -479,9 +479,9 @@ export default function SatansStudio() {
         </div>
       </div>
 
-      <main className="container mx-auto px-4 md:px-6 lg:px-8 py-8 max-w-[1400px]">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-          <div>
+            <main className="container mx-auto px-4 md:px-6 lg:px-8 py-8 max-w-[1400px] flex flex-col items-center">
+                <div className="w-full flex flex-col sm: flex-row items-center justify-center gap-4 mb-6">
+          <div className="text-center">
             <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-1">
               Videos by {profile.username}
             </h2>
@@ -519,7 +519,7 @@ export default function SatansStudio() {
             {isOwnStudio && <VideoUpload onUploadComplete={loadStudioData} />}
           </div>
         ) : (
-          <div className={viewMode === "grid" ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" : "grid grid-cols-1 gap-4"}>
+                    <div className={viewMode === "grid" ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 w-full" : "grid grid-cols-1 gap-4 w-full max-w-2xl"}>
             {videos.map((video) => (
               <div key={video.id} className="group relative bg-card border border-border rounded-lg overflow-hidden hover:border-primary/50 transition-all duration-300 hover:shadow-lg hover:shadow-primary/10">
                 <div onClick={() => handleVideoClick(video. id)} className="cursor-pointer">
