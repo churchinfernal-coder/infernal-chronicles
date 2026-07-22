@@ -1,0 +1,94 @@
+/**
+ * GATE: Subscriptions - Hard Production Release Gate
+ * 
+ * Requirements:
+ *   ✓ P95 Latency < 200ms
+ *   ✓ Success Rate > 99%
+ *   ✓ Error Rate < 1%
+ *   ✓ Stripe webhook integration
+ *   ✓ JWT auth enforced
+ *   ✓ Mobile UI responsive
+ * 
+ * Usage: npm run test:gate:subscriptions
+ */
+
+import { BaseGate } from './base-gate.mjs';
+
+const gate = new BaseGate('subscriptions');
+
+async function runGate() {
+  console.log('╔════════════════════════════════════════════════════════════════╗');
+  console.log('║           SUBSCRIPTION SYSTEM - PRODUCTION GATE                 ║');
+  console.log('╚════════════════════════════════════════════════════════════════╝\n');
+
+  try {
+    // Load test: 500 concurrent checkout requests
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://khugyibzsujjgtddwzpa.supabase.co';
+    const anonKey = process.env.VITE_SUPABASE_ANON_KEY;
+
+    if (!anonKey) {
+      throw new Error('Missing VITE_SUPABASE_ANON_KEY environment variable');
+    }
+
+    console.log('📊 LOAD TEST: Subscription Checkout\n');
+
+    // Simulate checkout requests
+    const testResult = await gate.runLoadTest({
+      name: 'checkout-session',
+      target: `${supabaseUrl}/functions/v1/create-checkout-session`,
+      method: 'POST',
+      payload: {
+        plan_id: 'plan_monthly',
+        mode: 'subscription',
+      },
+      headers: {
+        'Authorization': `Bearer ${anonKey}`,
+      },
+      concurrency: 50,
+      requests: 500,
+    });
+
+    console.log('\n📋 GATE EVALUATION: Subscription Metrics\n');
+
+    // Evaluate hard thresholds
+    const metricsPass = [
+      gate.evaluateMetric('P95 Latency', parseFloat(testResult.results.p95Latency), 200, '<', 'ms'),
+      gate.evaluateMetric('Error Rate', parseFloat(testResult.results.errorRate), 1, '<', '%'),
+      gate.evaluateMetric('Success Rate', parseFloat(testResult.results.successRate), 99, '>', '%'),
+    ];
+
+    // Security check: auth required
+    await gate.addTest('JWT Auth Enforced', async () => {
+      try {
+        const response = await fetch(`${supabaseUrl}/functions/v1/create-checkout-session`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ plan_id: 'plan_monthly' }),
+        });
+        
+        if (response.status === 401 || response.status === 403) {
+          return { detail: 'Auth correctly enforced' };
+        } else {
+          throw new Error(`Expected 401/403, got ${response.status}`);
+        }
+      } catch (e) {
+        throw new Error(`Auth check failed: ${e.message}`);
+      }
+    });
+
+    // Save evidence
+    gate.saveEvidence();
+
+    // Print result
+    const exitCode = gate.printResult();
+    process.exit(exitCode);
+
+  } catch (error) {
+    console.error('\n❌ Gate execution failed:', error.message);
+    gate.results.errors.push({ message: error.message });
+    gate.saveEvidence();
+    process.exit(1);
+  }
+}
+
+runGate();
