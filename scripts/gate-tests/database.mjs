@@ -12,6 +12,9 @@
 
 import { BaseGate } from './base-gate.mjs';
 import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
+
+dotenv.config({ path: ['.env.local', '.env'] });
 
 const gate = new BaseGate('database');
 
@@ -22,7 +25,11 @@ async function runGate() {
 
   try {
     const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://khugyibzsujjgtddwzpa.supabase.co';
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const serviceKey =
+      process.env.SUPABASE_SERVICE_ROLE_KEY ||
+      process.env.VITE_SUPABASE_SERVICE_ROLE_KEY ||
+      process.env.SUPABASE_SERVICE_KEY ||
+      '';
 
     if (!serviceKey) {
       console.warn('⚠️  SUPABASE_SERVICE_ROLE_KEY not set. Skipping database tests.');
@@ -36,28 +43,17 @@ async function runGate() {
     console.log('📋 INDEX VERIFICATION\n');
 
     await gate.addTest('Check Subscriptions Index', async () => {
-      const { data, error } = await supabase.rpc('get_index_info', {
-        table_name: 'subscriptions',
-        index_name: 'idx_subscriptions_user_status',
-      }).catch(() => ({ data: null, error: { message: 'Function not available' } }));
+      const { error } = await supabase
+        .from('occult_subscriptions')
+        .select('id', { head: true, count: 'exact' })
+        .eq('status', 'active')
+        .limit(1);
 
-      if (error && error.message.includes('Function not available')) {
-        // Fallback: try direct query
-        const result = await supabase
-          .from('subscriptions')
-          .select('*')
-          .eq('user_id', 'test-user')
-          .eq('status', 'active')
-          .limit(1);
-
-        return { detail: 'Index verified via query performance' };
+      if (error) {
+        throw new Error(`Subscription query failed: ${error.message}`);
       }
 
-      if (data && data.length > 0) {
-        return { detail: 'Index exists and is being used' };
-      }
-
-      throw new Error('Index not found or not properly configured');
+      return { detail: 'Subscriptions query succeeded with service-role credentials' };
     });
 
     // Test 2: Measure query performance (subscription lookup)
@@ -70,14 +66,13 @@ async function runGate() {
       const startTime = performance.now();
 
       try {
-        const { data } = await supabase
-          .from('subscriptions')
-          .select('*')
+        await supabase
+          .from('occult_subscriptions')
+          .select('id')
           .eq('user_id', `test-user-${i}`)
           .eq('status', 'active')
           .gte('expires_at', new Date().toISOString())
-          .limit(1)
-          .timeout(5000);
+          .limit(1);
 
         const duration = performance.now() - startTime;
         latencies.push(duration);
@@ -109,7 +104,6 @@ async function runGate() {
           .from('occult_library_books')
           .select('id, title')
           .limit(5)
-          .timeout(5000)
       );
 
       try {
