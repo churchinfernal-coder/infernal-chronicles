@@ -13,12 +13,15 @@ const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY") || "";
 const publicUrl = Deno.env.get("PUBLIC_URL") || "https://infernal-chronicles.com";
 const AUTH_CACHE_TTL_MS = 30_000;
 const AUTH_CACHE_MAX = 2000;
+const CHECKOUT_CACHE_TTL_MS = 120_000;
+const CHECKOUT_CACHE_MAX = 1000;
 
 const stripe = new Stripe(stripeSecretKey, { apiVersion: "2023-10-16" });
 const admin = createClient(supabaseUrl, serviceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 const authCache = new Map<string, { id: string; email?: string; expiresAt: number }>();
+const checkoutCache = new Map<string, { sessionId: string; url: string; expiresAt: number }>();
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -40,6 +43,28 @@ function setAuthCache(token: string, user: { id: string; email?: string }) {
     if (oldestKey) authCache.delete(oldestKey);
   }
   authCache.set(token, { ...user, expiresAt: Date.now() + AUTH_CACHE_TTL_MS });
+}
+
+function getCachedCheckout(key: string): { sessionId: string; url: string } | null {
+  const cached = checkoutCache.get(key);
+  if (!cached) return null;
+  if (cached.expiresAt <= Date.now()) {
+    checkoutCache.delete(key);
+    return null;
+  }
+  return { sessionId: cached.sessionId, url: cached.url };
+}
+
+function setCachedCheckout(key: string, sessionId: string, url: string) {
+  if (checkoutCache.size >= CHECKOUT_CACHE_MAX) {
+    const oldestKey = checkoutCache.keys().next().value;
+    if (oldestKey) checkoutCache.delete(oldestKey);
+  }
+  checkoutCache.set(key, {
+    sessionId,
+    url,
+    expiresAt: Date.now() + CHECKOUT_CACHE_TTL_MS,
+  });
 }
 
 async function resolveUserFromToken(token: string): Promise<{ id: string; email?: string } | null> {
@@ -92,6 +117,12 @@ Deno.serve(async (req) => {
 
     const originHeader = req.headers.get("origin") || req.headers.get("referer") || publicUrl;
     const origin = originHeader.replace(/\/$/, "");
+    const cacheKey = `${user.id}:${priceId}:${mode}:${origin}`;
+
+    const cachedSession = getCachedCheckout(cacheKey);
+    if (cachedSession) {
+      return json({ session_id: cachedSession.sessionId, url: cachedSession.url, cached: true }, 200);
+    }
 
     const session = await stripe.checkout.sessions.create({
       customer_email: user.email || undefined,
@@ -106,6 +137,10 @@ Deno.serve(async (req) => {
         mode,
       },
     });
+
+    if (session.id && session.url) {
+      setCachedCheckout(cacheKey, session.id, session.url);
+    }
 
     return json({ session_id: session.id, url: session.url }, 200);
   } catch (error: any) {
