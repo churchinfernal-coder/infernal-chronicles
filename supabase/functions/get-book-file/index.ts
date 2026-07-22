@@ -9,6 +9,22 @@ const corsHeaders = {
 
 // Short-lived signed URL so a link cannot be shared/re-used for long.
 const SIGNED_URL_TTL_SECONDS = 300;
+const AUTH_CACHE_TTL_MS = 30_000;
+const BOOK_CACHE_TTL_MS = 60_000;
+const ENTITLEMENT_CACHE_TTL_MS = 20_000;
+const SIGNED_URL_CACHE_TTL_MS = 20_000;
+const CACHE_MAX = 2000;
+
+const supabase = createClient(
+  Deno.env.get("SUPABASE_URL") || "",
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "",
+  { auth: { autoRefreshToken: false, persistSession: false } }
+);
+
+const authCache = new Map<string, { id: string; expiresAt: number }>();
+const bookCache = new Map<string, { title: string; storagePath: string; expiresAt: number }>();
+const entitlementCache = new Map<string, { hasAccess: boolean; expiresAt: number }>();
+const signedUrlCache = new Map<string, { url: string; title: string; expiresIn: number; expiresAt: number }>();
 
 function normalizeStoragePath(value: string): string {
   const trimmed = String(value || "").trim();
@@ -26,76 +42,156 @@ function normalizeStoragePath(value: string): string {
   return trimmed.replace(/^\/+/, "");
 }
 
+function setLimitedCache<T>(map: Map<string, T>, key: string, value: T) {
+  if (map.size >= CACHE_MAX) {
+    const oldestKey = map.keys().next().value;
+    if (oldestKey) map.delete(oldestKey);
+  }
+  map.set(key, value);
+}
+
+function getFreshCache<T extends { expiresAt: number }>(map: Map<string, T>, key: string): T | null {
+  const cached = map.get(key);
+  if (!cached) return null;
+  if (cached.expiresAt <= Date.now()) {
+    map.delete(key);
+    return null;
+  }
+  return cached;
+}
+
+function parseBearerToken(authHeader: string | null): string | null {
+  if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
+  const token = authHeader.slice(7).trim();
+  return token.length > 0 ? token : null;
+}
+
+async function resolveUserId(token: string): Promise<string | null> {
+  const cached = getFreshCache(authCache, token);
+  if (cached) {
+    return cached.id;
+  }
+
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  if (error || !user) {
+    return null;
+  }
+
+  setLimitedCache(authCache, token, { id: user.id, expiresAt: Date.now() + AUTH_CACHE_TTL_MS });
+  return user.id;
+}
+
+async function resolveBook(bookId: string): Promise<{ title: string; storagePath: string } | null> {
+  const cached = getFreshCache(bookCache, bookId);
+  if (cached) {
+    return { title: cached.title, storagePath: cached.storagePath };
+  }
+
+  const { data: book, error } = await supabase
+    .from("occult_library_books")
+    .select("id, title, pdf_url")
+    .eq("id", bookId)
+    .single();
+
+  if (error || !book) {
+    return null;
+  }
+
+  const storagePath = normalizeStoragePath(book.pdf_url || "");
+  if (!storagePath) {
+    return null;
+  }
+
+  const payload = {
+    title: String(book.title || "book"),
+    storagePath,
+  };
+
+  setLimitedCache(bookCache, bookId, { ...payload, expiresAt: Date.now() + BOOK_CACHE_TTL_MS });
+  return payload;
+}
+
+async function resolveAccess(userId: string, bookId: string): Promise<boolean> {
+  const key = `${userId}:${bookId}`;
+  const cached = getFreshCache(entitlementCache, key);
+  if (cached) {
+    return cached.hasAccess;
+  }
+
+  const [{ data: sub }, { data: purchase }] = await Promise.all([
+    supabase
+      .from("occult_subscriptions")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .maybeSingle(),
+    supabase
+      .from("book_purchases")
+      .select("book_id")
+      .eq("user_id", userId)
+      .eq("book_id", bookId)
+      .maybeSingle(),
+  ]);
+
+  let hasAccess = Boolean(sub) || Boolean(purchase);
+
+  if (!hasAccess) {
+    const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+    hasAccess = isAdmin === true;
+  }
+
+  setLimitedCache(entitlementCache, key, {
+    hasAccess,
+    expiresAt: Date.now() + ENTITLEMENT_CACHE_TTL_MS,
+  });
+
+  return hasAccess;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { status: 200, headers: corsHeaders });
   }
 
   try {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") || "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
-    );
-
     // 1. Authenticate the caller.
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
+    const token = parseBearerToken(req.headers.get("Authorization"));
+    if (!token) {
       return json({ error: "Missing authorization header" }, 401);
     }
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-    if (userError || !user) {
+
+    const userId = await resolveUserId(token);
+    if (!userId) {
       return json({ error: "Access denied" }, 403);
     }
 
     // 2. Validate input. `download: true` returns a URL that forces a file
     //    download (Content-Disposition: attachment) instead of inline viewing.
-    const payload = await req.json();
+    const payload = await req.json().catch(() => ({}));
     const bookId = payload?.bookId || payload?.book_id;
-    const download = payload?.download;
+    const download = Boolean(payload?.download);
     if (!bookId) {
       return json({ error: "Missing bookId" }, 400);
     }
 
-    // 3. Look up the book and its stored PDF path.
-    const { data: book, error: bookError } = await supabase
-      .from("occult_library_books")
-      .select("id, title, pdf_url")
-      .eq("id", bookId)
-      .single();
-
-    if (bookError || !book) {
-      return json({ error: "Book not found" }, 404);
+    const signedKey = `${userId}:${bookId}:${download ? "dl" : "inline"}`;
+    const cachedSigned = getFreshCache(signedUrlCache, signedKey);
+    if (cachedSigned) {
+      return json(
+        { url: cachedSigned.url, title: cachedSigned.title, expiresIn: cachedSigned.expiresIn },
+        200
+      );
     }
-    const storagePath = normalizeStoragePath(book.pdf_url || "");
-    if (!storagePath) {
-      return json({ error: "PDF not available for this book" }, 404);
+
+    // 3. Look up the book and its stored PDF path.
+    const book = await resolveBook(String(bookId));
+    if (!book) {
+      return json({ error: "Book not found" }, 404);
     }
 
     // 4. Enforce the entitlement rule server-side:
     //    active subscription OR an individual purchase OR admin.
-    const [{ data: sub }, { data: purchase }] = await Promise.all([
-      supabase
-        .from("occult_subscriptions")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("status", "active")
-        .maybeSingle(),
-      supabase
-        .from("book_purchases")
-        .select("book_id")
-        .eq("user_id", user.id)
-        .eq("book_id", bookId)
-        .maybeSingle(),
-    ]);
-
-    let hasAccess = Boolean(sub) || Boolean(purchase);
-
-    // Admin lookup is a fallback only when subscription/purchase checks miss.
-    if (!hasAccess) {
-      const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: user.id, _role: "admin" });
-      hasAccess = isAdmin === true;
-    }
+    const hasAccess = await resolveAccess(userId, String(bookId));
 
     if (!hasAccess) {
       return json({ error: "Subscribe or purchase to read this book" }, 403);
@@ -106,7 +202,7 @@ serve(async (req) => {
     const { data: signed, error: signError } = await supabase.storage
       .from("book-pdfs")
       .createSignedUrl(
-        storagePath,
+        book.storagePath,
         SIGNED_URL_TTL_SECONDS,
         download ? { download: safeName } : undefined
       );
@@ -115,7 +211,18 @@ serve(async (req) => {
       return json({ error: "Could not generate access link" }, 500);
     }
 
-    return json({ url: signed.signedUrl, title: book.title, expiresIn: SIGNED_URL_TTL_SECONDS }, 200);
+    const responsePayload = {
+      url: signed.signedUrl,
+      title: book.title,
+      expiresIn: SIGNED_URL_TTL_SECONDS,
+    };
+
+    setLimitedCache(signedUrlCache, signedKey, {
+      ...responsePayload,
+      expiresAt: Date.now() + SIGNED_URL_CACHE_TTL_MS,
+    });
+
+    return json(responsePayload, 200);
   } catch (error: any) {
     console.error("get-book-file error:", error);
     return json({ error: error.message ?? "Unexpected error" }, 500);

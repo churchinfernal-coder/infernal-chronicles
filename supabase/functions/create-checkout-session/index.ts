@@ -11,9 +11,14 @@ const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY") || "";
 const publicUrl = Deno.env.get("PUBLIC_URL") || "https://infernal-chronicles.com";
+const AUTH_CACHE_TTL_MS = 30_000;
+const AUTH_CACHE_MAX = 2000;
 
 const stripe = new Stripe(stripeSecretKey, { apiVersion: "2023-10-16" });
-const admin = createClient(supabaseUrl, serviceRoleKey);
+const admin = createClient(supabaseUrl, serviceRoleKey, {
+  auth: { autoRefreshToken: false, persistSession: false },
+});
+const authCache = new Map<string, { id: string; email?: string; expiresAt: number }>();
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -27,6 +32,34 @@ function extractBearerToken(authHeader: string | null): string | null {
   if (!authHeader.startsWith("Bearer ")) return null;
   const token = authHeader.slice(7).trim();
   return token.length > 0 ? token : null;
+}
+
+function setAuthCache(token: string, user: { id: string; email?: string }) {
+  if (authCache.size >= AUTH_CACHE_MAX) {
+    const oldestKey = authCache.keys().next().value;
+    if (oldestKey) authCache.delete(oldestKey);
+  }
+  authCache.set(token, { ...user, expiresAt: Date.now() + AUTH_CACHE_TTL_MS });
+}
+
+async function resolveUserFromToken(token: string): Promise<{ id: string; email?: string } | null> {
+  const cached = authCache.get(token);
+  if (cached && cached.expiresAt > Date.now()) {
+    return { id: cached.id, email: cached.email };
+  }
+
+  if (cached) {
+    authCache.delete(token);
+  }
+
+  const { data: authData, error: authError } = await admin.auth.getUser(token);
+  if (authError || !authData?.user) {
+    return null;
+  }
+
+  const user = { id: authData.user.id, email: authData.user.email || undefined };
+  setAuthCache(token, user);
+  return user;
 }
 
 Deno.serve(async (req) => {
@@ -44,11 +77,10 @@ Deno.serve(async (req) => {
       return json({ error: "Unauthorized" }, 401);
     }
 
-    const { data: authData, error: authError } = await admin.auth.getUser(token);
-    if (authError || !authData?.user) {
+    const user = await resolveUserFromToken(token);
+    if (!user) {
       return json({ error: "Invalid token" }, 401);
     }
-    const user = authData.user;
 
     const body = await req.json().catch(() => ({}));
     const priceId = typeof body?.priceId === "string" ? body.priceId.trim() : "";
