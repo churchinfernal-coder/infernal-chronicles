@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
+import { jwtVerify } from "https://esm.sh/jose@5.9.6";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,6 +10,7 @@ const corsHeaders = {
 
 // Short-lived signed URL so a link cannot be shared/re-used for long.
 const SIGNED_URL_TTL_SECONDS = 300;
+const supabaseJwtSecret = Deno.env.get("SUPABASE_JWT_SECRET") || "";
 const AUTH_CACHE_TTL_MS = 30_000;
 const BOOK_CACHE_TTL_MS = 60_000;
 const ENTITLEMENT_CACHE_TTL_MS = 20_000;
@@ -71,6 +73,20 @@ async function resolveUserId(token: string): Promise<string | null> {
   const cached = getFreshCache(authCache, token);
   if (cached) {
     return cached.id;
+  }
+
+  if (supabaseJwtSecret) {
+    try {
+      const encoder = new TextEncoder();
+      const { payload } = await jwtVerify(token, encoder.encode(supabaseJwtSecret));
+      const subject = typeof payload.sub === "string" ? payload.sub : "";
+      if (subject) {
+        setLimitedCache(authCache, token, { id: subject, expiresAt: Date.now() + AUTH_CACHE_TTL_MS });
+        return subject;
+      }
+    } catch {
+      // Fallback to authoritative Supabase user lookup.
+    }
   }
 
   const { data: { user }, error } = await supabase.auth.getUser(token);

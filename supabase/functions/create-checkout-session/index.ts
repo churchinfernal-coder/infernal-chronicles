@@ -1,5 +1,6 @@
 import Stripe from "https://esm.sh/stripe@14.9.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { jwtVerify } from "https://esm.sh/jose@5.9.6";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,6 +11,7 @@ const corsHeaders = {
 const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY") || "";
+const supabaseJwtSecret = Deno.env.get("SUPABASE_JWT_SECRET") || "";
 const publicUrl = Deno.env.get("PUBLIC_URL") || "https://infernal-chronicles.com";
 const AUTH_CACHE_TTL_MS = 30_000;
 const AUTH_CACHE_MAX = 2000;
@@ -75,6 +77,24 @@ async function resolveUserFromToken(token: string): Promise<{ id: string; email?
 
   if (cached) {
     authCache.delete(token);
+  }
+
+  if (supabaseJwtSecret) {
+    try {
+      const encoder = new TextEncoder();
+      const { payload } = await jwtVerify(token, encoder.encode(supabaseJwtSecret));
+      const subject = typeof payload.sub === "string" ? payload.sub : "";
+      if (subject) {
+        const localUser = {
+          id: subject,
+          email: typeof payload.email === "string" ? payload.email : undefined,
+        };
+        setAuthCache(token, localUser);
+        return localUser;
+      }
+    } catch {
+      // Fallback to authoritative Supabase user lookup.
+    }
   }
 
   const { data: authData, error: authError } = await admin.auth.getUser(token);
