@@ -28,9 +28,21 @@ interface OuijaResponse {
   updated_at: string;
 }
 
+interface SessionItem {
+  id: string;
+  created_at: string;
+  is_ai_generated: boolean;
+  spirit_type: string;
+  question: string;
+  response_text: string;
+  mood_rating: number | null;
+  created_by: string | null;
+  created_by_username?: string;
+}
+
 const OuijaChamberAdmin = () => {
   const [responses, setResponses] = useState<OuijaResponse[]>([]);
-  const [sessions, setSessions] = useState<any[]>([]);
+  const [sessions, setSessions] = useState<SessionItem[]>([]);
   const [newResponse, setNewResponse] = useState({
     response_text: '',
     category: 'Prophecy',
@@ -65,7 +77,7 @@ const OuijaChamberAdmin = () => {
   const fetchSessions = async () => {
     const { data, error } = await supabase
       .from('ouija_sessions')
-      .select('*, profiles(username)')
+      .select('*')
       .order('created_at', { ascending: false })
       .limit(50);
 
@@ -74,7 +86,29 @@ const OuijaChamberAdmin = () => {
       return;
     }
 
-    setSessions(data || []);
+    const sessionRows = (data || []) as SessionItem[];
+    const userIds = Array.from(new Set(sessionRows.map((s) => s.created_by).filter(Boolean))) as string[];
+
+    let profileMap: Record<string, string> = {};
+    if (userIds.length > 0) {
+      const { data: profileRows, error: profileError } = await supabase
+        .from('profiles')
+        .select('user_id, username')
+        .in('user_id', userIds);
+
+      if (profileError) {
+        console.warn('Error fetching session usernames:', profileError);
+      } else {
+        profileMap = Object.fromEntries((profileRows || []).map((p: any) => [p.user_id, p.username]));
+      }
+    }
+
+    setSessions(
+      sessionRows.map((session) => ({
+        ...session,
+        created_by_username: session.created_by ? profileMap[session.created_by] || 'Unknown' : 'Unknown',
+      }))
+    );
   };
 
   const addResponse = async () => {
@@ -150,7 +184,7 @@ const OuijaChamberAdmin = () => {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold bg-linear-to-r from-primary to-primary/60 bg-clip-text text-transparent">
             Ouija Chamber Control
           </h1>
           <p className="text-muted-foreground">Manage spirit responses and session logs</p>
@@ -318,7 +352,7 @@ const OuijaChamberAdmin = () => {
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <div>
-                    <CardTitle className="text-sm">{(session.profiles as any)?.username || 'Unknown'}</CardTitle>
+                    <CardTitle className="text-sm">{session.created_by_username || 'Unknown'}</CardTitle>
                     <CardDescription>{new Date(session.created_at).toLocaleString()}</CardDescription>
                   </div>
                   <div className="flex gap-2">

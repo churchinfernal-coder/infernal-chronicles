@@ -1,0 +1,73 @@
+{
+  "name": "subscription-checkout",
+  "timestamp": "2026-07-22T00:07:56.095Z",
+  "endpoint": "SUPABASE/functions/v1/create-checkout-session",
+  "config": {
+    "concurrency": 50,
+    "requests": 500
+  },
+  "results": {
+    "totalRequests": 500,
+    "successCount": 0,
+    "errorCount": 500,
+    "errorRate": "100.00",
+    "successRate": "0.00",
+    "totalDuration": "4920.89",
+    "averageLatency": "450.29",
+    "p50Latency": "365.31",
+    "p95Latency": "1044.51",
+    "p99Latency": "1240.08"
+  },
+  "errors": [
+    {
+      "status": 400,
+      "worker": 0,
+      "requestNum": 0
+    },
+    {
+      "status": 400,
+      "worker": 1,
+      "requestNum": 0
+    },
+    {
+      "status": 400,
+      "worker": 9,
+      "requestNum": 0
+    },
+    {
+      "status": 400,
+      "worker": 8,
+      "requestNum": 0
+    },
+    {
+      "status": 400,
+      "worker": 4,
+      "requestNum": 0
+    },
+    {
+      "status": 400,
+      "worker": 3,
+      "requestNum": 0
+    },
+    {
+      "status": 400,
+      "worker": 11,
+      "requestNum": 0
+    },
+    {
+      "status": 400,
+      "worker": 5,
+      "requestNum": 0
+    },
+    {
+      "status": 400,
+      "worker": 14,
+      "requestNum": 0
+    },
+    {
+      "status": 400,
+      "worker": 2,
+      "requestNum": 0
+    }
+  ]
+}

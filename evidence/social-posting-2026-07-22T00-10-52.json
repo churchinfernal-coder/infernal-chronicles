@@ -1,0 +1,73 @@
+{
+  "name": "social-posting",
+  "timestamp": "2026-07-22T00:10:52.322Z",
+  "endpoint": "SUPABASE/functions/v1/get-stripe-prices",
+  "config": {
+    "concurrency": 50,
+    "requests": 500
+  },
+  "results": {
+    "totalRequests": 500,
+    "successCount": 189,
+    "errorCount": 311,
+    "errorRate": "62.20",
+    "successRate": "37.80",
+    "totalDuration": "3957.85",
+    "averageLatency": "350.96",
+    "p50Latency": "324.48",
+    "p95Latency": "836.57",
+    "p99Latency": "934.37"
+  },
+  "errors": [
+    {
+      "status": 500,
+      "worker": 15,
+      "requestNum": 2
+    },
+    {
+      "status": 500,
+      "worker": 42,
+      "requestNum": 2
+    },
+    {
+      "status": 500,
+      "worker": 30,
+      "requestNum": 2
+    },
+    {
+      "status": 500,
+      "worker": 43,
+      "requestNum": 2
+    },
+    {
+      "status": 500,
+      "worker": 23,
+      "requestNum": 2
+    },
+    {
+      "status": 500,
+      "worker": 38,
+      "requestNum": 2
+    },
+    {
+      "status": 500,
+      "worker": 17,
+      "requestNum": 2
+    },
+    {
+      "status": 500,
+      "worker": 28,
+      "requestNum": 2
+    },
+    {
+      "status": 500,
+      "worker": 9,
+      "requestNum": 2
+    },
+    {
+      "status": 500,
+      "worker": 45,
+      "requestNum": 2
+    }
+  ]
+}

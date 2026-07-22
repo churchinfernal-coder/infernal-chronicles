@@ -7,15 +7,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { 
   Trash2, Save, Flag, Star, Edit, RefreshCw, Shield as ShieldIcon, Users, Settings, Palette, 
   Image, Book, Film, Calendar, MessageSquare, Ghost, Sparkles, Store, Castle, FileText, 
   Activity, Key, Library, Package, Zap, AlertTriangle, BarChart, Search, Lock, CheckSquare, 
-  Wrench, Crown, Coins, Gamepad2, Loader2, LogOut, X
+  Wrench, Crown, Coins, Gamepad2, Loader2, LogOut, X, Menu
 } from "lucide-react";
-import { SuperAdminNav, type NavItem } from "@/components/admin/SuperAdminNav";
+import { SuperAdminNav, type NavItem, type NavSection } from "@/components/admin/SuperAdminNav";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import RitualCalendarAdmin from "./admin/RitualCalendarAdmin";
 import AlliesCovenAdmin from "./admin/AlliesCovenAdmin";
@@ -57,6 +56,7 @@ import ReportsModeration from "./admin/ReportsModeration";
 import SiteAuditDashboard from "./admin/SiteAuditDashboard";
 import SuperAdminAI from "./SuperAdminAI";
 import PremiumServicesAdmin from "@/pages/admin/PremiumServicesAdmin";
+import FeatureFlagsAdmin from "@/pages/admin/FeatureFlagsAdmin";
 import AIFixDashboard from "@/components/admin/AIFixDashboard";
 import AIFixList from "@/components/admin/AIFixList";
 import AIAssetViewer from "@/components/admin/AIAssetViewer";
@@ -101,6 +101,7 @@ interface Annotation {
 export default function SuperAdmin() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("posts");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [authChecking, setAuthChecking] = useState(true);
@@ -140,6 +141,7 @@ export default function SuperAdmin() {
     { id: "tarot-rune-admin", value:  "tarot-rune-admin", label: "Tarot & Rune", icon: Sparkles },
     { id: "prime-store-admin", value:   "prime-store-admin", label:  "Prime Store", icon: Store },
     { id: "premium-services-admin", value:  "premium-services-admin", label:   "Premium Services", icon: Crown },
+    { id: "feature-flags", value: "feature-flags", label: "Feature Overlays", icon: Flag },
     { id: "premium-token-generator", value: "premium-token-generator", label:  "Premium Token Generator", icon:  Coins },
     { id: "my-castle-admin", value: "my-castle-admin", label:   "My Castle", icon: Castle },
     { id: "gaming-hub", value: "gaming-hub", label:  "Gaming Hub", icon: Gamepad2 },
@@ -162,6 +164,103 @@ export default function SuperAdmin() {
     { id:   "ai-fix-list", value: "ai-fix-list", label:  "AI Fix List", icon:  CheckSquare },
     { id:   "ai-asset-viewer", value: "ai-asset-viewer", label:  "AI Asset Viewer", icon:  Image },
   ];
+
+  const buildSectionItems = (ids: string[]): NavItem[] =>
+    ids.map((id) => navItems.find((item) => item.id === id)).filter((item): item is NavItem => Boolean(item));
+
+  const navSections: NavSection[] = [
+    {
+      id: "content",
+      label: "Content & Moderation",
+      items: buildSectionItems([
+        "posts",
+        "users",
+        "content-types-admin",
+        "reports-moderation",
+        "site-config",
+        "system-control",
+      ]),
+    },
+    {
+      id: "books",
+      label: "Books & Library",
+      items: buildSectionItems([
+        "book-writing-engine",
+        "book-approval-admin",
+        "occult-library-admin",
+        "featured-books-slider-admin",
+      ]),
+    },
+    {
+      id: "creative",
+      label: "Creative Studio",
+      items: buildSectionItems([
+        "design-editor",
+        "ai-image-generator",
+        "cinematic-engine",
+        "cinematic-frame-editor",
+        "frame-manager",
+        "infernal-animation",
+        "animation-sessions-admin",
+        "header-footer-management",
+        "seo-management",
+      ]),
+    },
+    {
+      id: "community",
+      label: "Community & Features",
+      items: buildSectionItems([
+        "ritual-calendar-admin",
+        "allies-coven-admin",
+        "infernal-chat-admin",
+        "ouija-chamber-admin",
+        "tarot-rune-admin",
+        "gaming-hub",
+        "my-castle-admin",
+      ]),
+    },
+    {
+      id: "monetization",
+      label: "Monetization",
+      items: buildSectionItems([
+        "prime-store-admin",
+        "premium-services-admin",
+        "feature-flags",
+        "premium-token-generator",
+        "access-keys-admin",
+      ]),
+    },
+    {
+      id: "audit",
+      label: "Audit & Security",
+      items: buildSectionItems([
+        "schema-forensics",
+        "security-audit",
+        "error-analysis",
+        "performance-metrics",
+        "module-inventory",
+        "audit-history",
+        "action-items",
+        "system-audit",
+        "integration-report",
+        "site-audit-dashboard",
+        "module-registry",
+      ]),
+    },
+    {
+      id: "ai",
+      label: "AI Operations",
+      items: buildSectionItems([
+        "feature-instructions",
+        "super-admin-ai",
+        "ai-fix-dashboard",
+        "ai-fix-list",
+        "ai-asset-viewer",
+      ]),
+    },
+  ];
+
+  const hasVisibleNavItems = navSections.some((section) => section.items.length > 0);
 
   useEffect(() => {
     checkAdminAccess();
@@ -504,6 +603,8 @@ export default function SuperAdmin() {
         return <SuperAdminAI />;
       case "premium-services-admin":
         return <PremiumServicesAdmin />;
+      case "feature-flags":
+        return <FeatureFlagsAdmin />;
       case "ai-fix-dashboard":
         return <AIFixDashboard />;
       case "ai-fix-list":  
@@ -544,11 +645,10 @@ export default function SuperAdmin() {
 
   if (authChecking) {
     return (
-      <div className="fixed inset-0 z-9999 flex items-center justify-center bg-background">
+      <div className="fixed inset-0 z-70 flex items-center justify-center bg-background">
         <div className="text-center space-y-4">
           <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
           <p className="text-lg text-muted-foreground">Verifying admin access...</p>
-          <p className="text-sm text-muted-foreground">Check browser console (F12) for debug info</p>
         </div>
       </div>
     );
@@ -559,16 +659,26 @@ export default function SuperAdmin() {
   }
 
   return (
-    <div className="fixed inset-0 z-9999 bg-background overflow-hidden">
+    <div className="fixed inset-0 z-60 bg-black text-white overflow-hidden">
       <div className="h-full flex flex-col">
-        <div className="border-b shrink-0">
+        <div className="border-b border-zinc-900 shrink-0 bg-black relative z-30">
           <div className="flex h-16 items-center px-4">
             <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => setSidebarOpen((v) => !v)}
+              >
+                <Menu className="h-4 w-4" />
+                <span>Menu</span>
+                <span className="sr-only">Open admin menu</span>
+              </Button>
               <ShieldIcon className="h-6 w-6 text-primary" />
               <h1 className="text-xl font-bold">Super Admin Panel</h1>
             </div>
             <div className="ml-auto flex items-center gap-4">
-              <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+              <Badge variant="outline" className="hidden sm:flex bg-primary/10 text-primary border-primary/30 max-w-[260px] truncate">
                 <Crown className="h-3 w-3 mr-1" />
                 {currentUser?.email}
               </Badge>
@@ -584,28 +694,32 @@ export default function SuperAdmin() {
           </div>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
-          <div className="border-b shrink-0">
-            <div className="px-4 overflow-x-auto">
-              <TabsList className="h-auto flex-wrap gap-2 bg-transparent">
-                {navItems.map((item) => (
-                  <TabsTrigger key={item.id} value={item.value} className="gap-2">
-                    <item.icon className="h-4 w-4" />
-                    {item.label}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </div>
-          </div>
+        <div className="flex-1 min-h-0 flex overflow-hidden">
+          <aside
+            className={`relative z-20 shrink-0 min-h-0 border-r border-zinc-900 bg-black overflow-hidden ${
+              sidebarOpen ? "w-[88vw] max-w-[360px] md:w-80" : "hidden"
+            }`}
+          >
+            {hasVisibleNavItems ? (
+              <div className="h-full min-h-0">
+                <SuperAdminNav activeTab={activeTab} sections={navSections} onTabChange={setActiveTab} />
+              </div>
+            ) : (
+              <div className="p-4 text-sm text-muted-foreground">
+                Navigation sections are unavailable.
+              </div>
+            )}
+          </aside>
 
-          <div className="flex-1 overflow-auto px-4 py-6">
-            {navItems.map((item) => (
-              <TabsContent key={item.id} value={item.value} className="h-full m-0">
-                {renderActiveTab()}
-              </TabsContent>
-            ))}
-          </div>
-        </Tabs>
+          <main className="relative z-10 flex-1 min-w-0 overflow-auto px-3 py-4 md:px-6 md:py-6 bg-black">
+            {!hasVisibleNavItems ? (
+              <div className="mb-4 rounded-md border border-destructive/40 bg-black px-4 py-3 text-sm text-destructive">
+                Navigation sections failed to load. Use the Menu button to access admin tools.
+              </div>
+            ) : null}
+            {renderActiveTab()}
+          </main>
+        </div>
       </div>
     </div>
   );

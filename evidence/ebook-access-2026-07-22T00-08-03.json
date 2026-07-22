@@ -1,0 +1,73 @@
+{
+  "name": "ebook-access",
+  "timestamp": "2026-07-22T00:08:03.104Z",
+  "endpoint": "SUPABASE/functions/v1/get-book-file",
+  "config": {
+    "concurrency": 100,
+    "requests": 500
+  },
+  "results": {
+    "totalRequests": 500,
+    "successCount": 0,
+    "errorCount": 500,
+    "errorRate": "100.00",
+    "successRate": "0.00",
+    "totalDuration": "6843.94",
+    "averageLatency": "1161.60",
+    "p50Latency": "654.58",
+    "p95Latency": "4367.03",
+    "p99Latency": "4585.48"
+  },
+  "errors": [
+    {
+      "status": 404,
+      "worker": 3,
+      "requestNum": 0
+    },
+    {
+      "status": 404,
+      "worker": 0,
+      "requestNum": 0
+    },
+    {
+      "status": 404,
+      "worker": 2,
+      "requestNum": 0
+    },
+    {
+      "status": 404,
+      "worker": 5,
+      "requestNum": 0
+    },
+    {
+      "status": 404,
+      "worker": 7,
+      "requestNum": 0
+    },
+    {
+      "status": 404,
+      "worker": 26,
+      "requestNum": 0
+    },
+    {
+      "status": 404,
+      "worker": 50,
+      "requestNum": 0
+    },
+    {
+      "status": 404,
+      "worker": 60,
+      "requestNum": 0
+    },
+    {
+      "status": 404,
+      "worker": 22,
+      "requestNum": 0
+    },
+    {
+      "status": 404,
+      "worker": 48,
+      "requestNum": 0
+    }
+  ]
+}

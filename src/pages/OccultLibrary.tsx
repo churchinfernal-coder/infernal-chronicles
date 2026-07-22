@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Book, Crown, Search, Star, ExternalLink, Download, Loader2 } from "lucide-react";
+import { Book, Crown, Search, Star, ExternalLink, Download, Loader2, BookOpen } from "lucide-react";
 import FeaturedBooksSlider from "@/components/FeaturedBooksSlider";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -41,6 +41,7 @@ export default function OccultLibrary() {
   const [featuredBooks, setFeaturedBooks] = useState<OccultBook[]>([]);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [purchases, setPurchases] = useState<string[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [checkingOut, setCheckingOut] = useState(false);
@@ -77,6 +78,16 @@ export default function OccultLibrary() {
     if (userPurchases) {
       setPurchases(userPurchases.map((p: any) => p.book_id));
     }
+
+    // Admins and superadmins have full access to every book.
+    const { data: roles } = await (supabase as any)
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id);
+
+    setIsAdmin(
+      Boolean(roles?.some((r: any) => r.role === "admin" || r.role === "superadmin"))
+    );
   };
 
   const fetchBooks = async () => {
@@ -99,7 +110,7 @@ export default function OccultLibrary() {
   };
 
   const hasAccess = (bookId: string) => {
-    return subscription?.status === "active" || purchases.includes(bookId);
+    return isAdmin || subscription?.status === "active" || purchases.includes(bookId);
   };
 
   const startCheckout = async () => {
@@ -168,22 +179,31 @@ export default function OccultLibrary() {
 
     const handleDownloadPDF = async () => {
       if (!book.pdf_url) return;
-      
-      const { data, error } = await supabase.storage
-        .from('book-pdfs')
-        .download(book.pdf_url);
 
-      if (error) {
-        toast.error("Failed to download PDF");
-        return;
+      try {
+        // Entitlement is verified server-side; we only receive a signed URL
+        // (with download disposition) when the user is genuinely paid.
+        const { data, error } = await supabase.functions.invoke("get-book-file", {
+          body: { bookId: book.id, download: true },
+        });
+
+        if (error) {
+          const message = (error as any)?.context?.error || error.message;
+          toast.error(message || "Failed to download PDF");
+          return;
+        }
+        if (!data?.url) {
+          toast.error(data?.error || "Failed to download PDF");
+          return;
+        }
+
+        const a = document.createElement("a");
+        a.href = data.url;
+        a.download = `${book.title}.pdf`;
+        a.click();
+      } catch (err: any) {
+        toast.error("Download failed: " + err.message);
       }
-
-      const url = URL.createObjectURL(data);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${book.title}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
     };
 
     return (
@@ -236,15 +256,26 @@ export default function OccultLibrary() {
                 {t("library.read")}
               </Button>
               {book.pdf_url && (
-                <Button 
-                  onClick={handleDownloadPDF}
-                  variant="outline"
-                  className="w-full border-crimson/40 text-sm"
-                  size="sm"
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  {t("library.download")}
-                </Button>
+                <>
+                  <Button 
+                    onClick={() => navigate(`/occult-library/pdf/${book.id}`)}
+                    variant="outline"
+                    className="w-full border-crimson/40 text-sm"
+                    size="sm"
+                  >
+                    <BookOpen className="mr-2 h-4 w-4" />
+                    Read PDF online
+                  </Button>
+                  <Button 
+                    onClick={handleDownloadPDF}
+                    variant="outline"
+                    className="w-full border-crimson/40 text-sm"
+                    size="sm"
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    {t("library.download")}
+                  </Button>
+                </>
               )}
             </>
           ) : (

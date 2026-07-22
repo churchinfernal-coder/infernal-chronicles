@@ -165,7 +165,10 @@ export default function AIFixDashboard() {
           {/* Tier Progress */}
           <div className="space-y-2">
             <div className="flex justify-between items-center">
-              <p className="font-semibold">Current Tier: <Badge>{usageSummary?.tier_name || 'Free'}</Badge></p>
+              <div className="flex items-center gap-2">
+                <span className="font-semibold">Current Tier:</span>
+                <Badge>{usageSummary?.tier_name || 'Free'}</Badge>
+              </div>
               <p className="text-sm text-muted-foreground">
                 {usageSummary?.month_credits_used || 0} / {usageSummary?.tier_limit || 1000} credits
               </p>
