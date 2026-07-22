@@ -18,6 +18,7 @@ type SemanticVideoMemoryRow = {
   similarity: number;
   motif_weight: number;
   project_recurrence: number;
+  emergence_score: number;
 };
 
 type CriticResult = {
@@ -25,6 +26,22 @@ type CriticResult = {
   missingMotifs: string[];
   notes: string;
   revisedPrompt: string;
+};
+
+type CrossModalCriticResult = {
+  score: number;
+  missingFromVideo: string[];
+  notes: string;
+  revisedPrompt: string;
+};
+
+type AutonomyCandidate = {
+  symbol: string;
+  style: string;
+  narrativeTheme: string;
+  sourceType: "inferred" | "external" | "cross_modal" | "semantic_network";
+  confidence: number;
+  reason: string;
 };
 
 type AuditActor = {
@@ -98,6 +115,23 @@ function uniq(values: string[]): string[] {
   }
   return out;
 }
+
+const SEMANTIC_MOTIF_GRAPH: Record<string, string[]> = {
+  runes: ["Sigil", "Threshold Door", "Occult Motifs"],
+  tarot: ["Mirror Gate", "Veil", "Labyrinth"],
+  necromancy: ["Skull Relic", "Black Candle", "Ritual Altar"],
+  ritual: ["Black Candle", "Pentagram", "Ritual Altar"],
+  transformation: ["Serpent Coil", "Eclipse", "Mirror Gate"],
+  prophecy: ["Tarot Card", "Infernal Choir", "Blood Moon"],
+};
+
+const EXTERNAL_OCCULT_SEEDS: Array<{ token: string; symbol: string; theme: string }> = [
+  { token: "goetia", symbol: "Goetic Seal", theme: "summoning" },
+  { token: "kabbalah", symbol: "Tree of Life", theme: "ascension" },
+  { token: "alchemy", symbol: "Hermetic Circle", theme: "transformation" },
+  { token: "grimoire", symbol: "Forbidden Codex", theme: "revelation" },
+  { token: "orphic", symbol: "Orphic Gate", theme: "duality" },
+];
 
 function extractVideoSymbols(input: string): string[] {
   const source = input.toLowerCase();
@@ -242,6 +276,7 @@ async function queryVideoMemory(
       similarity: Number(row.similarity || 0),
       motif_weight: Number(row.motif_weight || 1),
       project_recurrence: Number(row.project_recurrence || 1),
+      emergence_score: Number(row.emergence_score || 0),
     }));
 }
 
@@ -350,7 +385,12 @@ async function discoverNewMotifs(
 function computeAdaptivePriorities(rows: SemanticVideoMemoryRow[]): string[] {
   const weighted = rows
     .map((row) => {
-      const priority = Number((row.motif_weight * Math.max(row.project_recurrence, 1) * Math.max(row.similarity, 0.05)).toFixed(3));
+      const priority = Number((
+        row.motif_weight *
+        Math.max(row.project_recurrence, 1) *
+        Math.max(row.similarity, 0.05) *
+        Math.max(1 + row.emergence_score * 0.2, 1)
+      ).toFixed(3));
       return {
         symbol: row.symbol,
         priority,
@@ -359,6 +399,134 @@ function computeAdaptivePriorities(rows: SemanticVideoMemoryRow[]): string[] {
     .sort((a, b) => b.priority - a.priority);
 
   return uniq(weighted.map((entry) => entry.symbol)).slice(0, 5);
+}
+
+function inferSemanticNetworkCandidates(input: {
+  prompt: string;
+  requiredSymbols: string[];
+  requiredThemes: string[];
+  style: string;
+}): AutonomyCandidate[] {
+  const seedText = `${input.prompt} ${input.requiredSymbols.join(" ")} ${input.requiredThemes.join(" ")}`.toLowerCase();
+  const out: AutonomyCandidate[] = [];
+
+  for (const [token, linkedSymbols] of Object.entries(SEMANTIC_MOTIF_GRAPH)) {
+    if (!seedText.includes(token)) continue;
+    for (const symbol of linkedSymbols) {
+      if (input.requiredSymbols.includes(symbol)) continue;
+      out.push({
+        symbol,
+        style: input.style,
+        narrativeTheme: input.requiredThemes[0] || "ritual",
+        sourceType: "semantic_network",
+        confidence: 0.74,
+        reason: `Semantic network expansion from token '${token}'`,
+      });
+    }
+  }
+
+  return out;
+}
+
+function inferExternalCandidates(input: {
+  prompt: string;
+  requiredSymbols: string[];
+  style: string;
+}): AutonomyCandidate[] {
+  const source = input.prompt.toLowerCase();
+  const out: AutonomyCandidate[] = [];
+  for (const seed of EXTERNAL_OCCULT_SEEDS) {
+    if (!source.includes(seed.token)) continue;
+    if (input.requiredSymbols.includes(seed.symbol)) continue;
+    out.push({
+      symbol: seed.symbol,
+      style: input.style,
+      narrativeTheme: seed.theme,
+      sourceType: "external",
+      confidence: 0.68,
+      reason: `External occult lexicon hint '${seed.token}'`,
+    });
+  }
+  return out;
+}
+
+async function persistAutonomyCandidates(
+  supabase: ReturnType<typeof createClient>,
+  input: {
+    candidates: AutonomyCandidate[];
+    projectScopeId: string;
+    sourceFunction: string;
+  }
+) {
+  for (const candidate of input.candidates) {
+    await supabase.rpc("propose_video_memory_candidate", {
+      _symbol: candidate.symbol,
+      _style: candidate.style,
+      _narrative_theme: candidate.narrativeTheme,
+      _source_project_id: input.projectScopeId,
+      _source_type: candidate.sourceType,
+      _reason: candidate.reason,
+      _confidence: candidate.confidence,
+      _created_by_function: input.sourceFunction,
+    }).then(() => null).catch(() => null);
+  }
+}
+
+function buildAutonomousSeedPrompt(input: {
+  adaptivePriorities: string[];
+  engineThemes: string[];
+  imageSymbols: string[];
+  discoveredSymbols: string[];
+  discoveredThemes: string[];
+}): string {
+  const motifs = uniq([
+    ...input.adaptivePriorities,
+    ...input.imageSymbols,
+    ...input.discoveredSymbols,
+  ]).slice(0, 8);
+  const themes = uniq([
+    ...input.engineThemes,
+    ...input.discoveredThemes,
+  ]).slice(0, 6);
+
+  return [
+    "Autonomous continuity composition for infernal cinematic sequence.",
+    `Primary motifs: ${motifs.join(", ") || "Occult Motifs, Cinematic Motion"}.`,
+    `Narrative themes: ${themes.join(", ") || "ritual, transformation"}.`,
+    "Directive: craft a high-coherence scene that reinforces recurring motifs while introducing one emergent symbol.",
+  ].join(" ");
+}
+
+function runCrossModalCritic(input: {
+  prompt: string;
+  engineThemes: string[];
+  imageSymbols: string[];
+  requiredSymbols: string[];
+}): CrossModalCriticResult {
+  const normalized = input.prompt.toLowerCase();
+  const crossModalTokens = uniq([
+    ...input.engineThemes,
+    ...input.imageSymbols,
+  ]).slice(0, 8);
+
+  const missingFromVideo = crossModalTokens.filter((token) => !normalized.includes(token.toLowerCase()));
+  const score = Math.max(0, 100 - missingFromVideo.length * 10);
+  if (missingFromVideo.length === 0) {
+    return {
+      score,
+      missingFromVideo: [],
+      notes: "Video prompt aligns with cross-modal memory signals.",
+      revisedPrompt: input.prompt,
+    };
+  }
+
+  const revisedPrompt = `${input.prompt}\n\nCross-modal critic correction: ensure explicit inclusion of ${missingFromVideo.join(", ")}.`;
+  return {
+    score,
+    missingFromVideo,
+    notes: `Cross-modal drift detected for: ${missingFromVideo.join(", ")}`,
+    revisedPrompt,
+  };
 }
 
 function buildVideoPrompt(input: {
@@ -509,6 +677,8 @@ async function persistVideoMemory(input: {
   actor: AuditActor;
   requestId: string;
   sourceFunction: string;
+  textSignals: string[];
+  imageSignals: string[];
 }) {
   const primaryTheme = input.themes[0] || "ritual";
 
@@ -555,6 +725,15 @@ async function persistVideoMemory(input: {
       _symbol: symbol,
       _style: input.style,
       _narrative_theme: primaryTheme,
+    }).then(() => null).catch(() => null);
+
+    const textSignal = input.textSignals.some((token) => symbol.toLowerCase().includes(token.toLowerCase()) || token.toLowerCase().includes(symbol.toLowerCase()));
+    const imageSignal = input.imageSignals.some((token) => symbol.toLowerCase().includes(token.toLowerCase()) || token.toLowerCase().includes(symbol.toLowerCase()));
+    await input.supabase.rpc("reinforce_video_memory_entry", {
+      _memory_id: row?.id,
+      _text_signal: textSignal,
+      _image_signal: imageSignal,
+      _video_signal: true,
     }).then(() => null).catch(() => null);
 
     await logAudit(input.supabase, {
@@ -621,6 +800,7 @@ serve(async (req) => {
 
     const {
       prompt,
+      autonomous,
       type,
       style,
       background,
@@ -635,8 +815,10 @@ serve(async (req) => {
       strictCritic,
     } = await req.json();
 
-    if (!prompt || typeof prompt !== "string") {
-      return json({ error: "prompt is required" }, 400);
+    const autonomousMode = autonomous === true;
+    const userPrompt = typeof prompt === "string" ? prompt.trim() : "";
+    if (!userPrompt && !autonomousMode) {
+      return json({ error: "prompt is required unless autonomous=true" }, 400);
     }
 
     const requestedProjectId = toUuidOrNull(sourceProjectId) || toUuidOrNull(projectId);
@@ -648,7 +830,12 @@ serve(async (req) => {
     const videoFormat = deriveVideoFormat(resolvedType, resolvedAspectRatio);
     const durationSeconds = deriveDurationSeconds(resolvedFrameCount);
 
-    const semanticSeed = `${prompt}\n${visualStyle}\n${background || ""}\n${lighting || ""}\n${pose || ""}\n${expression || ""}`;
+    await supabase.rpc("apply_video_memory_decay", {
+      _as_of: new Date().toISOString(),
+      _project_filter: projectScopeId,
+    }).then(() => null).catch(() => null);
+
+    const semanticSeed = `${userPrompt}\n${visualStyle}\n${background || ""}\n${lighting || ""}\n${pose || ""}\n${expression || ""}`;
     const queryEmbedding = await getEmbeddingVector(openAIApiKey, semanticSeed);
     const videoRows = await queryVideoMemory(supabase, queryEmbedding, projectScopeId);
     const imageSymbols = await queryImageMemory(supabase, queryEmbedding, projectScopeId);
@@ -677,20 +864,51 @@ serve(async (req) => {
     const recalledSymbols = uniq(videoRows.map((row) => row.symbol)).slice(0, 8);
     const recalledStyles = uniq(videoRows.map((row) => row.style)).slice(0, 4);
     const recalledThemes = uniq(videoRows.map((row) => row.narrative_theme)).slice(0, 4);
-    const extractedSymbols = extractVideoSymbols(prompt);
-    const extractedThemes = extractNarrativeThemes(prompt);
+    const extractedSymbols = extractVideoSymbols(userPrompt);
+    const extractedThemes = extractNarrativeThemes(userPrompt);
     const discovered = await discoverNewMotifs(supabase, {
       requiredSymbols: uniq([...extractedSymbols, ...recalledSymbols, ...imageSymbols]).slice(0, 10),
       requiredThemes: uniq([...extractedThemes, ...recalledThemes, ...engineThemes]).slice(0, 8),
       recalledSymbols,
       recalledThemes,
     });
+
+    const proactiveCandidates = uniq([
+      ...inferSemanticNetworkCandidates({
+        prompt: userPrompt,
+        requiredSymbols: extractedSymbols,
+        requiredThemes: extractedThemes,
+        style: visualStyle,
+      }).map((c) => JSON.stringify(c)),
+      ...inferExternalCandidates({
+        prompt: userPrompt,
+        requiredSymbols: extractedSymbols,
+        style: visualStyle,
+      }).map((c) => JSON.stringify(c)),
+    ]).map((raw) => JSON.parse(raw) as AutonomyCandidate);
+
+    await persistAutonomyCandidates(supabase, {
+      candidates: proactiveCandidates,
+      projectScopeId,
+      sourceFunction,
+    });
+
     const adaptivePriorities = computeAdaptivePriorities(videoRows);
-    const requiredSymbols = uniq([...extractedSymbols, ...recalledSymbols, ...imageSymbols, ...discovered.symbols]).slice(0, 10);
-    const requiredThemes = uniq([...extractedThemes, ...recalledThemes, ...engineThemes, ...discovered.themes]).slice(0, 8);
+    const proactiveSymbols = proactiveCandidates.map((c) => c.symbol);
+    const proactiveThemes = proactiveCandidates.map((c) => c.narrativeTheme);
+    const requiredSymbols = uniq([...extractedSymbols, ...recalledSymbols, ...imageSymbols, ...discovered.symbols, ...proactiveSymbols]).slice(0, 10);
+    const requiredThemes = uniq([...extractedThemes, ...recalledThemes, ...engineThemes, ...discovered.themes, ...proactiveThemes]).slice(0, 8);
+
+    const seedPrompt = userPrompt || buildAutonomousSeedPrompt({
+      adaptivePriorities,
+      engineThemes,
+      imageSymbols,
+      discoveredSymbols: discovered.symbols,
+      discoveredThemes: discovered.themes,
+    });
 
     const videoPrompt = buildVideoPrompt({
-      prompt,
+      prompt: seedPrompt,
       style: visualStyle,
       background: typeof background === "string" ? background : "ritual chamber",
       lighting: typeof lighting === "string" ? lighting : "dramatic",
@@ -709,13 +927,21 @@ serve(async (req) => {
     });
 
     const critic = runCriticPass(videoPrompt, [...requiredSymbols.slice(0, 5), ...requiredThemes.slice(0, 3)]);
-    const finalPrompt = strictCritic === true ? critic.revisedPrompt : videoPrompt;
+    const crossModalCritic = runCrossModalCritic({
+      prompt: critic.revisedPrompt,
+      engineThemes,
+      imageSymbols,
+      requiredSymbols,
+    });
+    const finalPrompt = strictCritic === true ? crossModalCritic.revisedPrompt : critic.revisedPrompt;
 
     logStructured("video_memory.critic", {
       requestId,
       projectScopeId,
       score: critic.score,
       missingMotifs: critic.missingMotifs,
+      crossModalScore: crossModalCritic.score,
+      crossModalMissing: crossModalCritic.missingFromVideo,
       strictCritic: strictCritic === true,
     });
     await logAudit(supabase, {
@@ -727,9 +953,12 @@ serve(async (req) => {
       metadata: {
         score: critic.score,
         missingMotifs: critic.missingMotifs,
+        crossModalScore: crossModalCritic.score,
+        crossModalMissing: crossModalCritic.missingFromVideo,
         strictCritic: strictCritic === true,
         discoveredSymbols: discovered.symbols,
         discoveredThemes: discovered.themes,
+        proactiveCandidates,
       },
     });
 
@@ -750,7 +979,11 @@ serve(async (req) => {
           readSource: videoRows.length > 0 ? "video_memory.semantic" : "fallback",
           discoveredSymbols: discovered.symbols,
           discoveredThemes: discovered.themes,
+          proactiveCandidates,
           adaptivePriorities,
+          autonomousMode,
+          seedPrompt,
+          crossModalCritic,
           requestId,
         },
         200
@@ -774,6 +1007,8 @@ serve(async (req) => {
         actor,
         requestId,
         sourceFunction,
+        textSignals: engineThemes,
+        imageSignals: imageSymbols,
       });
 
       return json(
@@ -782,6 +1017,7 @@ serve(async (req) => {
           imageUrl: `data:image/png;base64,${b64}`,
           promptUsed: finalPrompt,
           critic,
+          crossModalCritic,
           recalledSymbols,
           recalledStyles,
           recalledThemes,
@@ -792,7 +1028,10 @@ serve(async (req) => {
           projectScopeId,
           discoveredSymbols: discovered.symbols,
           discoveredThemes: discovered.themes,
+          proactiveCandidates,
           adaptivePriorities,
+          autonomousMode,
+          seedPrompt,
           requestId,
         },
         200
@@ -815,6 +1054,8 @@ serve(async (req) => {
       actor,
       requestId,
       sourceFunction,
+      textSignals: engineThemes,
+      imageSignals: imageSymbols,
     });
 
     return json(
@@ -823,6 +1064,7 @@ serve(async (req) => {
         frames,
         promptUsed: finalPrompt,
         critic,
+        crossModalCritic,
         recalledSymbols,
         recalledStyles,
         recalledThemes,
@@ -833,7 +1075,10 @@ serve(async (req) => {
         projectScopeId,
         discoveredSymbols: discovered.symbols,
         discoveredThemes: discovered.themes,
+        proactiveCandidates,
         adaptivePriorities,
+        autonomousMode,
+        seedPrompt,
         requestId,
       },
       200
