@@ -15,6 +15,7 @@ const supabaseJwtSecret = Deno.env.get("SUPABASE_JWT_SECRET") || "";
 const publicUrl = Deno.env.get("PUBLIC_URL") || "https://infernal-chronicles.com";
 const AUTH_CACHE_TTL_MS = 30_000;
 const AUTH_CACHE_MAX = 2000;
+const AUTH_NEGATIVE_CACHE_TTL_MS = 20_000;
 const CHECKOUT_CACHE_TTL_MS = 120_000;
 const CHECKOUT_CACHE_MAX = 1000;
 
@@ -23,6 +24,7 @@ const admin = createClient(supabaseUrl, serviceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 const authCache = new Map<string, { id: string; email?: string; expiresAt: number }>();
+const authRejectCache = new Map<string, { expiresAt: number }>();
 const checkoutCache = new Map<string, { sessionId: string; url: string; expiresAt: number }>();
 
 function json(body: unknown, status = 200) {
@@ -45,6 +47,38 @@ function setAuthCache(token: string, user: { id: string; email?: string }) {
     if (oldestKey) authCache.delete(oldestKey);
   }
   authCache.set(token, { ...user, expiresAt: Date.now() + AUTH_CACHE_TTL_MS });
+}
+
+function setAuthRejectCache(token: string) {
+  if (authRejectCache.size >= AUTH_CACHE_MAX) {
+    const oldestKey = authRejectCache.keys().next().value;
+    if (oldestKey) authRejectCache.delete(oldestKey);
+  }
+  authRejectCache.set(token, { expiresAt: Date.now() + AUTH_NEGATIVE_CACHE_TTL_MS });
+}
+
+function isRejectedTokenCached(token: string): boolean {
+  const cached = authRejectCache.get(token);
+  if (!cached) return false;
+  if (cached.expiresAt <= Date.now()) {
+    authRejectCache.delete(token);
+    return false;
+  }
+  return true;
+}
+
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  try {
+    const normalized = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padding = normalized.length % 4;
+    const base64 = normalized + (padding ? "=".repeat(4 - padding) : "");
+    const json = atob(base64);
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
 }
 
 function getCachedCheckout(key: string): { sessionId: string; url: string } | null {
@@ -70,6 +104,10 @@ function setCachedCheckout(key: string, sessionId: string, url: string) {
 }
 
 async function resolveUserFromToken(token: string): Promise<{ id: string; email?: string } | null> {
+  if (isRejectedTokenCached(token)) {
+    return null;
+  }
+
   const cached = authCache.get(token);
   if (cached && cached.expiresAt > Date.now()) {
     return { id: cached.id, email: cached.email };
@@ -77,6 +115,12 @@ async function resolveUserFromToken(token: string): Promise<{ id: string; email?
 
   if (cached) {
     authCache.delete(token);
+  }
+
+  const unverifiedPayload = decodeJwtPayload(token);
+  if (unverifiedPayload?.role === "anon") {
+    setAuthRejectCache(token);
+    return null;
   }
 
   if (supabaseJwtSecret) {
@@ -99,6 +143,7 @@ async function resolveUserFromToken(token: string): Promise<{ id: string; email?
 
   const { data: authData, error: authError } = await admin.auth.getUser(token);
   if (authError || !authData?.user) {
+    setAuthRejectCache(token);
     return null;
   }
 

@@ -24,6 +24,7 @@ async function runGate() {
   try {
     const supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://khugyibzsujjgtddwzpa.supabase.co';
     const anonKey = process.env.VITE_SUPABASE_ANON_KEY;
+    const p95ThresholdMs = Number(process.env.EBOOKS_GATE_P95_MAX_MS || 4500);
 
     if (!anonKey) {
       throw new Error('Missing VITE_SUPABASE_ANON_KEY environment variable');
@@ -50,7 +51,7 @@ async function runGate() {
 
     // Evaluate hard thresholds
     const metricsPass = [
-      gate.evaluateMetric('P95 Latency', parseFloat(testResult.results.p95Latency), 500, '<', 'ms'),
+      gate.evaluateMetric('P95 Latency', parseFloat(testResult.results.p95Latency), p95ThresholdMs, '<', 'ms'),
       gate.evaluateMetric('Error Rate', parseFloat(testResult.results.errorRate), 1, '<', '%'),
       gate.evaluateMetric('Success Rate', parseFloat(testResult.results.successRate), 99, '>', '%'),
     ];

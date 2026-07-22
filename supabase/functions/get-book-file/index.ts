@@ -12,6 +12,7 @@ const corsHeaders = {
 const SIGNED_URL_TTL_SECONDS = 300;
 const supabaseJwtSecret = Deno.env.get("SUPABASE_JWT_SECRET") || "";
 const AUTH_CACHE_TTL_MS = 30_000;
+const AUTH_NEGATIVE_CACHE_TTL_MS = 20_000;
 const BOOK_CACHE_TTL_MS = 60_000;
 const ENTITLEMENT_CACHE_TTL_MS = 20_000;
 const SIGNED_URL_CACHE_TTL_MS = 240_000;
@@ -24,6 +25,7 @@ const supabase = createClient(
 );
 
 const authCache = new Map<string, { id: string; expiresAt: number }>();
+const authRejectCache = new Map<string, { expiresAt: number }>();
 const bookCache = new Map<string, { title: string; storagePath: string; expiresAt: number }>();
 const entitlementCache = new Map<string, { hasAccess: boolean; expiresAt: number }>();
 const signedUrlCache = new Map<string, { url: string; title: string; expiresIn: number; expiresAt: number }>();
@@ -69,10 +71,52 @@ function parseBearerToken(authHeader: string | null): string | null {
   return token.length > 0 ? token : null;
 }
 
+function setAuthRejectCache(token: string) {
+  if (authRejectCache.size >= CACHE_MAX) {
+    const oldestKey = authRejectCache.keys().next().value;
+    if (oldestKey) authRejectCache.delete(oldestKey);
+  }
+  authRejectCache.set(token, { expiresAt: Date.now() + AUTH_NEGATIVE_CACHE_TTL_MS });
+}
+
+function isRejectedTokenCached(token: string): boolean {
+  const cached = authRejectCache.get(token);
+  if (!cached) return false;
+  if (cached.expiresAt <= Date.now()) {
+    authRejectCache.delete(token);
+    return false;
+  }
+  return true;
+}
+
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  try {
+    const normalized = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padding = normalized.length % 4;
+    const base64 = normalized + (padding ? "=".repeat(4 - padding) : "");
+    const json = atob(base64);
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
 async function resolveUserId(token: string): Promise<string | null> {
+  if (isRejectedTokenCached(token)) {
+    return null;
+  }
+
   const cached = getFreshCache(authCache, token);
   if (cached) {
     return cached.id;
+  }
+
+  const unverifiedPayload = decodeJwtPayload(token);
+  if (unverifiedPayload?.role === "anon") {
+    setAuthRejectCache(token);
+    return null;
   }
 
   if (supabaseJwtSecret) {
@@ -91,6 +135,7 @@ async function resolveUserId(token: string): Promise<string | null> {
 
   const { data: { user }, error } = await supabase.auth.getUser(token);
   if (error || !user) {
+    setAuthRejectCache(token);
     return null;
   }
 
