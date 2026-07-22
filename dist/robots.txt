@@ -1,18 +1,25 @@
-# Robots.txt for Infernal Social
-
+﻿# Infernal Church of Satan (I.C.O.S) - Robots.txt
 User-agent: *
+Allow: /landing/
 Allow: /
+
+# Sitemap
+Sitemap: https://infernalsocial.com/sitemap.xml
+
+# Crawl-delay (be nice to servers)
+Crawl-delay: 1
+
+# Disallow admin paths
 Disallow: /admin/
 Disallow: /api/
-Disallow: /checkout/
-Disallow: /payment-success/
-Disallow:  /payment-cancel/
-Disallow: /settings/
-Disallow: /messages/
-Disallow: /notifications/
+Disallow: */private/*
 
-# Sitemap location
-Sitemap: https://infernalsocial.com/sitemap. xml
+# Allow all search engines
+User-agent: Googlebot
+Allow: /
 
-# Crawl delay (optional - prevents aggressive crawling)
-Crawl-delay: 1
+User-agent: Bingbot
+Allow: /
+
+User-agent: Slurp
+Allow: /

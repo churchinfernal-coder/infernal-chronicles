@@ -1,0 +1,170 @@
+{
+  "name": "subscriptions",
+  "timestamp": "2026-07-22T01:32:29.927Z",
+  "tests": [
+    {
+      "name": "checkout-session",
+      "target": "https://khugyibzsujjgtddwzpa.supabase.co/functions/v1/create-checkout-session",
+      "config": {
+        "name": "checkout-session",
+        "target": "https://khugyibzsujjgtddwzpa.supabase.co/functions/v1/create-checkout-session",
+        "method": "POST",
+        "payload": {
+          "plan_id": "plan_monthly",
+          "mode": "subscription"
+        },
+        "headers": {
+          "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtodWd5aWJ6c3Vqamd0ZGR3enBhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAwMzczNzYsImV4cCI6MjA3NTYxMzM3Nn0.AqE_-hXoCwfrHp5jq_uXREiT_KJTD8ES2i8HlZWZvPQ"
+        },
+        "concurrency": 50,
+        "requests": 500
+      },
+      "results": {
+        "totalRequests": 500,
+        "successCount": 0,
+        "errorCount": 500,
+        "errorRate": "100.00",
+        "successRate": "0.00",
+        "totalDuration": "4644.80",
+        "averageLatency": "409.28",
+        "p50Latency": "246.16",
+        "p95Latency": "1728.27",
+        "p99Latency": "1945.27"
+      },
+      "errors": [
+        {
+          "status": 400,
+          "worker": 4,
+          "requestNum": 0
+        },
+        {
+          "status": 400,
+          "worker": 2,
+          "requestNum": 0
+        },
+        {
+          "status": 400,
+          "worker": 10,
+          "requestNum": 0
+        },
+        {
+          "status": 400,
+          "worker": 0,
+          "requestNum": 0
+        },
+        {
+          "status": 400,
+          "worker": 1,
+          "requestNum": 0
+        },
+        {
+          "status": 400,
+          "worker": 9,
+          "requestNum": 0
+        },
+        {
+          "status": 400,
+          "worker": 6,
+          "requestNum": 0
+        },
+        {
+          "status": 400,
+          "worker": 3,
+          "requestNum": 0
+        },
+        {
+          "status": 400,
+          "worker": 15,
+          "requestNum": 0
+        },
+        {
+          "status": 400,
+          "worker": 5,
+          "requestNum": 0
+        },
+        {
+          "status": 400,
+          "worker": 14,
+          "requestNum": 0
+        },
+        {
+          "status": 400,
+          "worker": 8,
+          "requestNum": 0
+        },
+        {
+          "status": 400,
+          "worker": 26,
+          "requestNum": 0
+        },
+        {
+          "status": 400,
+          "worker": 19,
+          "requestNum": 0
+        },
+        {
+          "status": 400,
+          "worker": 7,
+          "requestNum": 0
+        },
+        {
+          "status": 400,
+          "worker": 22,
+          "requestNum": 0
+        },
+        {
+          "status": 400,
+          "worker": 12,
+          "requestNum": 0
+        },
+        {
+          "status": 400,
+          "worker": 18,
+          "requestNum": 0
+        },
+        {
+          "status": 400,
+          "worker": 24,
+          "requestNum": 0
+        },
+        {
+          "status": 400,
+          "worker": 27,
+          "requestNum": 0
+        }
+      ]
+    },
+    {
+      "name": "JWT Auth Enforced",
+      "status": "PASS",
+      "duration": "114.01",
+      "detail": "Auth correctly enforced"
+    }
+  ],
+  "passed": 1,
+  "failed": 0,
+  "metrics": {
+    "P95 Latency": {
+      "actual": 1728.27,
+      "threshold": 200,
+      "operator": "<",
+      "unit": "ms",
+      "pass": false
+    },
+    "Error Rate": {
+      "actual": 100,
+      "threshold": 1,
+      "operator": "<",
+      "unit": "%",
+      "pass": false
+    },
+    "Success Rate": {
+      "actual": 0,
+      "threshold": 99,
+      "operator": ">",
+      "unit": "%",
+      "pass": false
+    }
+  },
+  "errors": []
+}

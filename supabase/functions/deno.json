@@ -4,6 +4,11 @@
     "lib": ["deno.window"],
     "strict": true
   },
+  "imports": {
+    "stripe": "https://esm.sh/stripe@14.9.0",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.38.4",
+    "jose": "https://esm.sh/jose@5.1.0"
+  },
   "lint": {
     "files": {
       "include": ["**/*.ts"]

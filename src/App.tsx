@@ -9,6 +9,8 @@ import { LanguageProvider } from "./contexts/LanguageContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import Footer from "@/components/Footer";
 import NotificationPanel from "@/components/NotificationPanel";
+import { AdminRoute } from "@/components/AdminRoute";
+import { FeatureGate } from "@/components/FeatureGate";
 import { Button } from "@/components/ui/button";
 import { Bell } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +39,8 @@ const Terms = React.lazy(() => import("./pages/Terms"));
 const Disclaimer = React.lazy(() => import("./pages/Disclaimer"));
 const Checkout = React.lazy(() => import("./pages/Checkout"));
 const LandingPage = React.lazy(() => import("./pages/landing/LandingPage"));
+// Heavy admin surface: lazy-loaded so it is never in the main bundle.
+const SuperAdmin = React.lazy(() => import("./pages/SuperAdmin"));
 
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -55,11 +59,12 @@ import SatansStudio from "./pages/SatansStudio";
 import OuijaRoom from "./pages/OuijaRoom";
 import TarotReading from "./pages/TarotReading";
 import RuneCasting from "./pages/RuneCasting";
-import SuperAdmin from "./pages/SuperAdmin";
 import MyDungeon from "./pages/MyDungeon";
 import DungeonAlbum from "./pages/DungeonAlbum";
 import WickedWorks from "./pages/WickedWorks";
 import OccultLibrary from "./pages/OccultLibrary";
+import OccultLibraryReader from "./pages/OccultLibraryReader";
+import OccultLibraryPdfReader from "./pages/OccultLibraryPdfReader";
 import NotFound from "./pages/NotFound";
 import QuickTarotUpload from "./pages/admin/QuickTarotUpload";
 import AlbumDetail from "@/pages/AlbumDetail";
@@ -296,7 +301,7 @@ export default function App() {
                           <Routes>
                             <Route path="/auth" element={<Auth />} />
                             <Route path="/auth/callback" element={<AuthCallback />} />
-                            <Route path="/superadmin" element={<SuperAdmin />} />
+                            <Route path="/superadmin" element={<AdminRoute><SuperAdmin /></AdminRoute>} />
 
                             <Route path="/" element={<Layout />}>
                               <Route index element={<Index />} />
@@ -333,22 +338,24 @@ export default function App() {
                             <Route path="/feed" element={<ProtectedRoute><Feed /></ProtectedRoute>} />
                             <Route path="/friends" element={<ProtectedRoute><Friends /></ProtectedRoute>} />
                             <Route path="/allies" element={<ProtectedRoute><Friends /></ProtectedRoute>} />
-                            <Route path="/covens" element={<ProtectedRoute><Covens /></ProtectedRoute>} />
-                            <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
+                            <Route path="/covens" element={<ProtectedRoute><FeatureGate flagKey="coven"><Covens /></FeatureGate></ProtectedRoute>} />
+                            <Route path="/chat" element={<ProtectedRoute><FeatureGate flagKey="chat"><Chat /></FeatureGate></ProtectedRoute>} />
                             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
                             <Route path="/profile/:username" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
                             <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-                            <Route path="/solomons-chamber" element={<ProtectedRoute><SolomonsChamber /></ProtectedRoute>} />
+                            <Route path="/solomons-chamber" element={<ProtectedRoute><FeatureGate flagKey="solomons-chamber"><SolomonsChamber /></FeatureGate></ProtectedRoute>} />
                             <Route path="/ritual-calendar" element={<ProtectedRoute><RitualCalendar /></ProtectedRoute>} />
                             <Route path="/satans-sinagogue" element={<ProtectedRoute><SatansSinagogue /></ProtectedRoute>} />
                             <Route path="/studio/:username" element={<ProtectedRoute><SatansStudio /></ProtectedRoute>} />
-                            <Route path="/ouija-room" element={<ProtectedRoute><OuijaRoom /></ProtectedRoute>} />
-                            <Route path="/tarot-reading" element={<ProtectedRoute><TarotReading /></ProtectedRoute>} />
-                            <Route path="/rune-casting" element={<ProtectedRoute><RuneCasting /></ProtectedRoute>} />
-                            <Route path="/my-dungeon" element={<ProtectedRoute><MyDungeon /></ProtectedRoute>} />
-                            <Route path="/dungeon-album" element={<ProtectedRoute><DungeonAlbum /></ProtectedRoute>} />
-                            <Route path="/wicked-works" element={<ProtectedRoute><WickedWorks /></ProtectedRoute>} />
-                            <Route path="/occult-library" element={<ProtectedRoute><OccultLibrary /></ProtectedRoute>} />
+                            <Route path="/ouija-room" element={<ProtectedRoute><FeatureGate flagKey="ouija-chamber"><OuijaRoom /></FeatureGate></ProtectedRoute>} />
+                            <Route path="/tarot-reading" element={<ProtectedRoute><FeatureGate flagKey="tarot-reading"><TarotReading /></FeatureGate></ProtectedRoute>} />
+                            <Route path="/rune-casting" element={<ProtectedRoute><FeatureGate flagKey="rune-casting"><RuneCasting /></FeatureGate></ProtectedRoute>} />
+                            <Route path="/my-dungeon" element={<ProtectedRoute><FeatureGate flagKey="my-dungeon"><MyDungeon /></FeatureGate></ProtectedRoute>} />
+                            <Route path="/dungeon-album" element={<ProtectedRoute><FeatureGate flagKey="my-dungeon"><DungeonAlbum /></FeatureGate></ProtectedRoute>} />
+                            <Route path="/wicked-works" element={<ProtectedRoute><FeatureGate flagKey="wicked-works"><WickedWorks /></FeatureGate></ProtectedRoute>} />
+                            <Route path="/occult-library" element={<ProtectedRoute><FeatureGate flagKey="occult-library"><OccultLibrary /></FeatureGate></ProtectedRoute>} />
+                            <Route path="/occult-library/read/:bookId" element={<ProtectedRoute><FeatureGate flagKey="occult-library"><OccultLibraryReader /></FeatureGate></ProtectedRoute>} />
+                            <Route path="/occult-library/pdf/:bookId" element={<ProtectedRoute><FeatureGate flagKey="occult-library"><OccultLibraryPdfReader /></FeatureGate></ProtectedRoute>} />
                             <Route path="/design-editor" element={<ProtectedRoute><DesignEditor /></ProtectedRoute>} />
                             <Route path="/ai-image-generator" element={<ProtectedRoute><AIImageGenerator /></ProtectedRoute>} />
                             <Route path="/dungeon/album/:albumId" element={<AlbumDetail />} />
@@ -357,7 +364,7 @@ export default function App() {
                             <Route path="/tarot" element={<ProtectedRoute><TarotRoute /></ProtectedRoute>} />
                             <Route path="/purchase" element={<ProtectedRoute><Purchase /></ProtectedRoute>} />
                             <Route path="/picture-palace" element={<ProtectedRoute><PicturePalace /></ProtectedRoute>} />
-                            <Route path="/coven/:covenId" element={<ProtectedRoute><CovenPage /></ProtectedRoute>} />
+                            <Route path="/coven/:covenId" element={<ProtectedRoute><FeatureGate flagKey="coven"><CovenPage /></FeatureGate></ProtectedRoute>} />
                             <Route path="/checkout" element={<Checkout />} />
                             <Route path="/premium" element={<Premium />} />
                             <Route path="/wicked-works-purchase" element={<WickedWorksPurchase />} />

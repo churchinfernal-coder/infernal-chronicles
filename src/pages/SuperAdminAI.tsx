@@ -66,13 +66,18 @@ export default function SuperAdminAI() {
         return;
       }
 
-      const { data: adminRole } = await supabase
+      const { data: roles, error: rolesError } = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', user.id)
-        .maybeSingle();
+        .eq('user_id', user.id);
 
-      const isAdmin = adminRole?.role === 'admin' || adminRole?.role === 'super_admin'; // Handle both admin and super_admin
+      if (rolesError) {
+        throw rolesError;
+      }
+
+      const isAdmin = (roles || []).some(
+        (r: any) => r.role === 'admin' || r.role === 'superadmin' || r.role === 'super_admin'
+      );
 
       setHasAccess(isAdmin);
 
@@ -80,7 +85,7 @@ export default function SuperAdminAI() {
         await loadAllData();
       } else {
         toast.error('Access Denied: You do not have the required permissions.');
-        navigate('/admin'); // Redirect to a general admin page if no super access
+        navigate('/dashboard');
       }
     } catch (error) {
       console.error('Error checking access:', error);

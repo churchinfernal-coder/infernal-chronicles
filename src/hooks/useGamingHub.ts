@@ -27,9 +27,7 @@ export interface Game {
   tags: string[] | null;
   created_at: string;
   updated_at: string;
-  profiles?: {
-    username: string;
-  };
+  created_by_username?: string;
 }
 
 export type GameStatus = 'draft' | 'published' | 'archived';
@@ -47,10 +45,7 @@ export const useGamingHub = () => {
       setLoading(true);
       let query = supabase
         .from('game_projects')
-        .select(`
-          *,
-          profiles(username)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       // Apply status filter
@@ -66,7 +61,29 @@ export const useGamingHub = () => {
 
       if (error) throw error;
 
-      setGames((data as any) || []);
+      const gameRows = (data as Game[]) || [];
+      const userIds = Array.from(new Set(gameRows.map((g) => g.user_id).filter(Boolean)));
+
+      let profileMap: Record<string, string> = {};
+      if (userIds.length > 0) {
+        const { data: profileRows, error: profileError } = await supabase
+          .from('profiles')
+          .select('user_id, username')
+          .in('user_id', userIds);
+
+        if (profileError) {
+          console.warn('Error loading game usernames:', profileError);
+        } else {
+          profileMap = Object.fromEntries((profileRows || []).map((p: any) => [p.user_id, p.username]));
+        }
+      }
+
+      setGames(
+        gameRows.map((game) => ({
+          ...game,
+          created_by_username: profileMap[game.user_id] || 'Unknown',
+        }))
+      );
     } catch (error: any) {
       console.error('Error loading games:', error);
       toast({
