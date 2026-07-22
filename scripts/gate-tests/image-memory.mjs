@@ -265,20 +265,19 @@ async function runGate() {
         source_function: 'image-memory-gate-stress',
       }));
 
-      for (const row of rows) {
-        const { error } = await rpcClient.rpc('upsert_image_memory_entry', {
-          _symbol: row.symbol,
-          _style: row.style,
-          _source_project_id: row.source_project_id,
-          _book_id: null,
-          _cover_prompt: row.cover_prompt,
-          _embedding: null,
-          _critic_score: null,
-          _critic_notes: null,
-          _source_function: row.source_function,
-        });
-        if (error) throw error;
-      }
+      const { error: bulkError } = await rpcClient.rpc('bulk_upsert_image_memory_entries', {
+        _entries: rows.map((row) => ({
+          symbol: row.symbol,
+          style: row.style,
+          source_project_id: row.source_project_id,
+          book_id: null,
+          cover_prompt: row.cover_prompt,
+          critic_score: null,
+          critic_notes: null,
+          source_function: row.source_function,
+        })),
+      });
+      if (bulkError) throw bulkError;
 
       const { data: count, error } = await rpcClient.rpc('count_image_memory_entries', {
         _source_project_id: projectScopeId,
