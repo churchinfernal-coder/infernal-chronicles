@@ -18,10 +18,11 @@
     "test:gate:subscriptions": "node scripts/gate-tests/subscriptions.mjs",
     "test:gate:ebooks": "node scripts/gate-tests/ebooks.mjs",
     "test:gate:image-memory": "node scripts/gate-tests/image-memory.mjs",
+    "test:gate:video-memory": "node scripts/gate-tests/video-memory.mjs",
     "test:gate:database": "node scripts/gate-tests/database.mjs",
     "test:gate:security": "node scripts/gate-tests/security.mjs",
     "test:gate:responsive": "node scripts/gate-tests/responsive.mjs",
-    "test:all:gates": "npm run test:gate:subscriptions && npm run test:gate:ebooks && npm run test:gate:database && npm run test:gate:security && npm run test:gate:responsive"
+    "test:all:gates": "npm run test:gate:subscriptions && npm run test:gate:ebooks && npm run test:gate:image-memory && npm run test:gate:video-memory && npm run test:gate:database && npm run test:gate:security && npm run test:gate:responsive"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
