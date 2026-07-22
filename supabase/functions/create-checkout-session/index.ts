@@ -2,111 +2,80 @@
  * Supabase Edge Function: create-checkout-session
  * Purpose: Create Stripe checkout session for subscription purchases
  * Hard Gate: P95 < 200ms, Success > 99%, Error < 1%
- *
- * Endpoint: POST /functions/v1/create-checkout-session
- * Auth Required: Yes (JWT in Authorization header)
- * Rate Limited: Yes (5/hour per user)
  */
 
-import Stripe from 'https://esm.sh/stripe@14.0.0?target=deno';
+import Stripe from 'https://esm.sh/stripe@14.9.0'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4'
 
-const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
-  apiVersion: '2023-10-16',
-  httpClient: Stripe.createFetchHttpClient(),
-});
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-/**
- * Extract and validate JWT from Authorization header
- */
-function extractUserIdFromToken(authHeader: string | null): string | null {
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return null;
-  }
-
-  try {
-    const token = authHeader.substring(7);
-    const parts = token.split('.');
-    
-    if (parts.length !== 3) {
-      return null;
-    }
-
-    const payload = JSON.parse(atob(parts[1]));
-    return payload.sub || null;
-  } catch {
-    return null;
-  }
-}
+const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY'))
+const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
+  // Enable CORS
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { 
-      status: 200,
-      headers: corsHeaders 
-    });
-  }
-
-  // Only allow POST
-  if (req.method !== 'POST') {
-    return new Response(
-      JSON.stringify({ error: 'Method not allowed' }),
-      { 
-        status: 405, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    );
+    return new Response(null, {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'authorization, content-type',
+      },
+    })
   }
 
   try {
-    // Validate JWT token
-    const authHeader = req.headers.get('authorization');
-    const userId = extractUserIdFromToken(authHeader);
-
-    if (!userId) {
-      console.error('❌ Unauthorized: Invalid or missing JWT token');
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized: Invalid JWT token' }),
-        { 
-          status: 401, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
+    // Get JWT from Authorization header
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      })
     }
 
-    const { userId: bodyUserId, productType, priceId, mode } = await req.json();
+    const token = authHeader.slice(7)
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+    })
 
-    console.log('📦 Checkout request:', { userId, productType, priceId, mode });
-
-    // Verify user ID matches JWT
-    if (bodyUserId && bodyUserId !== userId) {
-      console.error('❌ User ID mismatch');
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized: User ID mismatch' }),
-        { 
-          status: 403, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: 'Invalid token' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      })
     }
 
-    // Validate required fields
-    if (!productType || !priceId) {
-      console.error('❌ Missing required parameters');
-      return new Response(
-        JSON.stringify({ error: 'Missing required parameters: productType, priceId' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
+    // Get request body
+    const { priceId, mode = 'subscription' } = await req.json()
+    if (!priceId) {
+      return new Response(JSON.stringify({ error: 'priceId required' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      })
     }
+
+    // Create Stripe session
+    const session = await stripe.checkout.sessions.create({
+      customer_email: user.email,
+      line_items: [{ price: priceId, quantity: 1 }],
+      mode,
+      success_url: `${Deno.env.get('PUBLIC_URL')}/subscription/success`,
+      cancel_url: `${Deno.env.get('PUBLIC_URL')}/subscription/cancel`,
+    })
+
+    return new Response(JSON.stringify({ session_id: session.id, url: session.url }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+})
+
 
     const origin = req.headers.get('origin') || req.headers.get('referer')?.replace(/\/$/, '') || 'https://infernal-chronicles.com';
     const checkoutMode = mode || 'subscription';

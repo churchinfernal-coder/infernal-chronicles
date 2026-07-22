@@ -38,7 +38,7 @@ async function runGate() {
       target: `${supabaseUrl}/functions/v1/create-checkout-session`,
       method: 'POST',
       payload: {
-        plan_id: 'plan_monthly',
+        priceId: 'price_1R7h3AC79jfp0Sqd8ql4LkHJ',
         mode: 'subscription',
       },
       headers: {
@@ -63,7 +63,7 @@ async function runGate() {
         const response = await fetch(`${supabaseUrl}/functions/v1/create-checkout-session`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ plan_id: 'plan_monthly' }),
+          body: JSON.stringify({ priceId: 'price_1R7h3AC79jfp0Sqd8ql4LkHJ' }),
         });
         
         if (response.status === 401 || response.status === 403) {

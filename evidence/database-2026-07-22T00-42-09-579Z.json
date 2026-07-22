@@ -1,0 +1,35 @@
+{
+  "name": "database",
+  "timestamp": "2026-07-22T00:42:09.579Z",
+  "tests": [
+    {
+      "name": "Check Subscriptions Index",
+      "status": "FAIL",
+      "error": "supabase.rpc(...).catch is not a function"
+    },
+    {
+      "name": "100 Concurrent Connections",
+      "status": "FAIL",
+      "error": "supabase.from(...).select(...).limit(...).timeout is not a function"
+    }
+  ],
+  "passed": 0,
+  "failed": 2,
+  "metrics": {
+    "P99 Latency (was 4000ms)": {
+      "actual": 7.639199999999846,
+      "threshold": 100,
+      "operator": "<",
+      "unit": "ms",
+      "pass": true
+    },
+    "P95 Latency": {
+      "actual": 3.856999999999971,
+      "threshold": 200,
+      "operator": "<",
+      "unit": "ms",
+      "pass": true
+    }
+  },
+  "errors": []
+}
