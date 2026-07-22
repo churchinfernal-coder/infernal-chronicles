@@ -103,6 +103,79 @@ as $$
   limit greatest(match_count, 1);
 $$;
 
+create or replace function public.upsert_image_memory_entry(
+  _symbol text,
+  _style text,
+  _source_project_id uuid,
+  _book_id uuid,
+  _cover_prompt text,
+  _embedding vector(1536) default null,
+  _critic_score numeric(5,2) default null,
+  _critic_notes text default null,
+  _source_function text default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  inserted_id uuid;
+begin
+  insert into public.image_memory (
+    symbol,
+    style,
+    source_project_id,
+    book_id,
+    cover_prompt,
+    embedding,
+    critic_score,
+    critic_notes,
+    source_function
+  ) values (
+    _symbol,
+    coalesce(nullif(trim(_style), ''), 'gothic'),
+    coalesce(_source_project_id, '00000000-0000-0000-0000-000000000000'::uuid),
+    _book_id,
+    _cover_prompt,
+    _embedding,
+    _critic_score,
+    _critic_notes,
+    _source_function
+  )
+  on conflict (symbol, style, source_project_id)
+  do update set
+    book_id = excluded.book_id,
+    cover_prompt = excluded.cover_prompt,
+    embedding = excluded.embedding,
+    critic_score = excluded.critic_score,
+    critic_notes = excluded.critic_notes,
+    source_function = excluded.source_function,
+    updated_at = now()
+  returning id into inserted_id;
+
+  return inserted_id;
+end;
+$$;
+
+create or replace function public.count_image_memory_entries(
+  _source_project_id uuid default null,
+  _symbol text default null,
+  _style text default null
+)
+returns integer
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select count(*)::int
+  from public.image_memory
+  where (_source_project_id is null or source_project_id = _source_project_id)
+    and (_symbol is null or symbol = _symbol)
+    and (_style is null or style = _style);
+$$;
+
 alter table public.image_memory enable row level security;
 
 do $$

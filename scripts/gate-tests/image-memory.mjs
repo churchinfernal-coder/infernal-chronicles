@@ -62,6 +62,7 @@ async function runGate() {
     }
 
     const supabase = createClient(supabaseUrl, serviceKey);
+    const rpcClient = createClient(supabaseUrl, serviceKey);
     const projectScopeId = NIL_UUID;
 
     await gate.addTest('Schema available: image_memory table', async () => {
@@ -81,26 +82,41 @@ async function runGate() {
         source_function: 'image-memory-gate',
       };
 
-      const { error: upsert1Error } = await supabase
-        .from('image_memory')
-        .upsert(seed, { onConflict: 'symbol,style,source_project_id' });
+      const { error: upsert1Error } = await rpcClient.rpc('upsert_image_memory_entry', {
+        _symbol: seed.symbol,
+        _style: seed.style,
+        _source_project_id: seed.source_project_id,
+        _book_id: null,
+        _cover_prompt: seed.cover_prompt,
+        _embedding: null,
+        _critic_score: null,
+        _critic_notes: null,
+        _source_function: seed.source_function,
+      });
       if (upsert1Error) throw upsert1Error;
 
-      const { error: upsert2Error } = await supabase
-        .from('image_memory')
-        .upsert(seed, { onConflict: 'symbol,style,source_project_id' });
+      const { error: upsert2Error } = await rpcClient.rpc('upsert_image_memory_entry', {
+        _symbol: seed.symbol,
+        _style: seed.style,
+        _source_project_id: seed.source_project_id,
+        _book_id: null,
+        _cover_prompt: seed.cover_prompt,
+        _embedding: null,
+        _critic_score: null,
+        _critic_notes: null,
+        _source_function: seed.source_function,
+      });
       if (upsert2Error) throw upsert2Error;
 
-      const { data, error } = await supabase
-        .from('image_memory')
-        .select('id')
-        .eq('symbol', seed.symbol)
-        .eq('style', seed.style)
-        .eq('source_project_id', projectScopeId);
+      const { data: count, error } = await rpcClient.rpc('count_image_memory_entries', {
+        _source_project_id: projectScopeId,
+        _symbol: seed.symbol,
+        _style: seed.style,
+      });
 
       if (error) throw error;
-      if ((data || []).length !== 1) {
-        throw new Error(`Expected deduped row count = 1, got ${(data || []).length}`);
+      if (Number(count || 0) !== 1) {
+        throw new Error(`Expected deduped row count = 1, got ${Number(count || 0)}`);
       }
 
       return { detail: 'Composite dedupe constraint enforced' };
@@ -119,17 +135,17 @@ async function runGate() {
 
       for (const motif of motifs) {
         const embedding = await getEmbedding(openAIApiKey, `${motif.symbol} ${motif.style}`);
-        const { error } = await supabase.from('image_memory').upsert(
-          {
-            symbol: motif.symbol,
-            style: motif.style,
-            source_project_id: projectScopeId,
-            cover_prompt: `${motif.symbol} motif continuity`,
-            embedding,
-            source_function: 'image-memory-gate',
-          },
-          { onConflict: 'symbol,style,source_project_id' }
-        );
+        const { error } = await rpcClient.rpc('upsert_image_memory_entry', {
+          _symbol: motif.symbol,
+          _style: motif.style,
+          _source_project_id: projectScopeId,
+          _book_id: null,
+          _cover_prompt: `${motif.symbol} motif continuity`,
+          _embedding: embedding,
+          _critic_score: null,
+          _critic_notes: null,
+          _source_function: 'image-memory-gate',
+        });
         if (error) throw error;
       }
 
@@ -249,21 +265,29 @@ async function runGate() {
         source_function: 'image-memory-gate-stress',
       }));
 
-      const { error: upsertError } = await supabase
-        .from('image_memory')
-        .upsert(rows, { onConflict: 'symbol,style,source_project_id' });
-      if (upsertError) throw upsertError;
+      for (const row of rows) {
+        const { error } = await rpcClient.rpc('upsert_image_memory_entry', {
+          _symbol: row.symbol,
+          _style: row.style,
+          _source_project_id: row.source_project_id,
+          _book_id: null,
+          _cover_prompt: row.cover_prompt,
+          _embedding: null,
+          _critic_score: null,
+          _critic_notes: null,
+          _source_function: row.source_function,
+        });
+        if (error) throw error;
+      }
 
-      const { data, error } = await supabase
-        .from('image_memory')
-        .select('id')
-        .eq('source_project_id', projectScopeId)
-        .limit(300);
+      const { data: count, error } = await rpcClient.rpc('count_image_memory_entries', {
+        _source_project_id: projectScopeId,
+      });
       if (error) throw error;
 
       const duration = performance.now() - start;
-      if ((data || []).length < 200) {
-        throw new Error(`Expected >=200 motifs in scope, got ${(data || []).length}`);
+      if (Number(count || 0) < 200) {
+        throw new Error(`Expected >=200 motifs in scope, got ${Number(count || 0)}`);
       }
 
       gate.evaluateMetric('Image Memory Stress Query (ms)', duration, 5000, '<', 'ms');
