@@ -34,7 +34,9 @@ serve(async (req) => {
 
     // 2. Validate input. `download: true` returns a URL that forces a file
     //    download (Content-Disposition: attachment) instead of inline viewing.
-    const { bookId, download } = await req.json();
+    const payload = await req.json();
+    const bookId = payload?.bookId || payload?.book_id;
+    const download = payload?.download;
     if (!bookId) {
       return json({ error: "Missing bookId" }, 400);
     }
@@ -55,7 +57,7 @@ serve(async (req) => {
 
     // 4. Enforce the entitlement rule server-side:
     //    active subscription OR an individual purchase OR admin.
-    const [{ data: sub }, { data: purchase }, { data: isAdmin }] = await Promise.all([
+    const [{ data: sub }, { data: purchase }] = await Promise.all([
       supabase
         .from("occult_subscriptions")
         .select("id")
@@ -68,10 +70,16 @@ serve(async (req) => {
         .eq("user_id", user.id)
         .eq("book_id", bookId)
         .maybeSingle(),
-      supabase.rpc("has_role", { _user_id: user.id, _role: "admin" }),
     ]);
 
-    const hasAccess = Boolean(sub) || Boolean(purchase) || isAdmin === true;
+    let hasAccess = Boolean(sub) || Boolean(purchase);
+
+    // Admin lookup is a fallback only when subscription/purchase checks miss.
+    if (!hasAccess) {
+      const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: user.id, _role: "admin" });
+      hasAccess = isAdmin === true;
+    }
+
     if (!hasAccess) {
       return json({ error: "Subscribe or purchase to read this book" }, 403);
     }
