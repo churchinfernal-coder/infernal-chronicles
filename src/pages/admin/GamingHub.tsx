@@ -436,7 +436,7 @@ export default function GamingHub() {
                             <div className="flex items-center gap-6 text-xs text-red-400/50">
                               <div className="flex items-center gap-1">
                                 <User className="h-3 w-3" />
-                                {game.profiles?.username || 'Unknown'}
+                                {game.created_by_username || 'Unknown'}
                               </div>
                               <div className="flex items-center gap-1">
                                 <Calendar className="h-3 w-3" />

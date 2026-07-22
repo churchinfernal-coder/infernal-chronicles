@@ -1,12 +1,10 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Database } from "lucide-react";
 
 export default function DatabaseInspector() {
-  const [sql, setSql] = useState("SELECT * FROM profiles LIMIT 10;");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ rows?: any[]; rowCount?: number; durationMs?: number; executedSql?: string; error?: string } | null>(null);
 
@@ -26,39 +24,33 @@ export default function DatabaseInspector() {
     setResult(data);
   };
 
-  const runCustom = () => execute({ sql });
-
   const runQuick = (qa: string) => execute({ quickAction: qa });
 
   return (
     <div className="space-y-4">
-      <div>
-        <Label>SQL Query</Label>
-        <textarea
-          className="w-full min-h-[140px] p-3 border rounded-md font-mono text-sm bg-background"
-          value={sql}
-          onChange={(e) => setSql(e.target.value)}
-          placeholder="SELECT * FROM profiles LIMIT 10;"
-        />
+      <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-300">
+        <p className="font-semibold flex items-center gap-2">
+          <Database className="h-4 w-4" /> Read-only inspector
+        </p>
+        <p className="mt-1">
+          Free-form SQL is disabled for security. Use the predefined, metadata-only
+          actions below — they never expose user data.
+        </p>
       </div>
-      <Button onClick={runCustom} disabled={loading}>
-        <Database className="h-4 w-4 mr-2" />
-        {loading ? "Executing..." : "Execute Query"}
-      </Button>
 
-      <div className="pt-6 border-t">
+      <div className="pt-2 border-t">
         <h3 className="font-semibold mb-3">Quick Actions</h3>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          <Button variant="outline" className="justify-start" onClick={() => runQuick("view_all_tables")}>
+          <Button variant="outline" className="justify-start" disabled={loading} onClick={() => runQuick("view_all_tables")}>
             View All Tables
           </Button>
-          <Button variant="outline" className="justify-start" onClick={() => runQuick("view_active_sessions")}>
+          <Button variant="outline" className="justify-start" disabled={loading} onClick={() => runQuick("view_active_sessions")}>
             View Active Sessions
           </Button>
-          <Button variant="outline" className="justify-start" onClick={() => runQuick("view_recent_queries")}>
+          <Button variant="outline" className="justify-start" disabled={loading} onClick={() => runQuick("view_recent_queries")}>
             View Recent Queries
           </Button>
-          <Button variant="outline" className="justify-start" onClick={() => runQuick("database_statistics")}>
+          <Button variant="outline" className="justify-start" disabled={loading} onClick={() => runQuick("database_statistics")}>
             Database Statistics
           </Button>
         </div>

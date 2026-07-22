@@ -1,22 +1,46 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { 
-  Trash2, Save, Flag, Star, Edit, RefreshCw, Shield as ShieldIcon, Users, Settings, Palette, 
-  Image, Book, Film, Calendar, MessageSquare, Ghost, Sparkles, Store, Castle, FileText, 
-  Activity, Key, Library, Package, Zap, AlertTriangle, BarChart, Search, Lock, CheckSquare, 
-  Wrench, Crown, Coins, Gamepad2, Loader2, LogOut, X
+import type { User } from "@supabase/supabase-js";
+import {
+  Activity,
+  AlertTriangle,
+  BarChart,
+  Book,
+  Calendar,
+  Castle,
+  CheckSquare,
+  Coins,
+  Crown,
+  FileText,
+  Film,
+  Flag,
+  Gamepad2,
+  Ghost,
+  Image,
+  Key,
+  Library,
+  Loader2,
+  Lock,
+  LogOut,
+  Menu,
+  MessageSquare,
+  Package,
+  Palette,
+  Search,
+  Settings,
+  Shield as ShieldIcon,
+  Sparkles,
+  Store,
+  Users,
+  Wrench,
+  X,
+  Zap,
 } from "lucide-react";
-import { SuperAdminNav, type NavItem } from "@/components/admin/SuperAdminNav";
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import { SuperAdminNav, type NavItem, type NavSection } from "@/components/admin/SuperAdminNav";
 import RitualCalendarAdmin from "./admin/RitualCalendarAdmin";
 import AlliesCovenAdmin from "./admin/AlliesCovenAdmin";
 import InfernalChatAdmin from "./admin/InfernalChatAdmin";
@@ -57,6 +81,7 @@ import ReportsModeration from "./admin/ReportsModeration";
 import SiteAuditDashboard from "./admin/SiteAuditDashboard";
 import SuperAdminAI from "./SuperAdminAI";
 import PremiumServicesAdmin from "@/pages/admin/PremiumServicesAdmin";
+import FeatureFlagsAdmin from "@/pages/admin/FeatureFlagsAdmin";
 import AIFixDashboard from "@/components/admin/AIFixDashboard";
 import AIFixList from "@/components/admin/AIFixList";
 import AIAssetViewer from "@/components/admin/AIAssetViewer";
@@ -64,55 +89,13 @@ import GamingHub from "./admin/GamingHub";
 import PremiumTokenGenerator from "@/pages/admin/PremiumTokenGenerator";
 import BookApprovalAdmin from "./admin/BookApprovalAdmin";
 
-interface Post {
-  id: string;
-  content: string;
-  user_id: string;
-  created_at: string;
-  updated_at: string;
-  visibility: string;
-  post_type: string;
-  media_url:   string | null;
-  media_type:   string | null;
-  featured:   boolean;
-  flagged_for_review:  boolean;
-  profiles: {
-    username: string;
-  } | null;
-  title? :  string;
-  chant?:  string;
-  tags?:  string[];
-}
-
-interface EditState {
-  content: string;
-  visibility: string;
-  post_type: string;
-  media_url: string;
-}
-
-interface Annotation {
-  id: string;
-  annotation:   string;
-  created_at: string;
-  admin_user_id: string;
-}
-
 export default function SuperAdmin() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("posts");
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [authChecking, setAuthChecking] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [editingPost, setEditingPost] = useState<string | null>(null);
-  const [editState, setEditState] = useState<Record<string, EditState>>({});
-  const [filterUser, setFilterUser] = useState("");
-  const [filterType, setFilterType] = useState("all");
-  const [filterVisibility, setFilterVisibility] = useState("all");
-  const [annotationText, setAnnotationText] = useState<Record<string, string>>({});
-  const [annotations, setAnnotations] = useState<Record<string, Annotation[]>>({});
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   const navItems:  NavItem[] = [
     { id: "posts", value: "posts", label: "Content Moderation", icon: ShieldIcon },
@@ -140,6 +123,7 @@ export default function SuperAdmin() {
     { id: "tarot-rune-admin", value:  "tarot-rune-admin", label: "Tarot & Rune", icon: Sparkles },
     { id: "prime-store-admin", value:   "prime-store-admin", label:  "Prime Store", icon: Store },
     { id: "premium-services-admin", value:  "premium-services-admin", label:   "Premium Services", icon: Crown },
+    { id: "feature-flags", value: "feature-flags", label: "Feature Overlays", icon: Flag },
     { id: "premium-token-generator", value: "premium-token-generator", label:  "Premium Token Generator", icon:  Coins },
     { id: "my-castle-admin", value: "my-castle-admin", label:   "My Castle", icon: Castle },
     { id: "gaming-hub", value: "gaming-hub", label:  "Gaming Hub", icon: Gamepad2 },
@@ -163,21 +147,117 @@ export default function SuperAdmin() {
     { id:   "ai-asset-viewer", value: "ai-asset-viewer", label:  "AI Asset Viewer", icon:  Image },
   ];
 
-  useEffect(() => {
-    checkAdminAccess();
-  }, []);
+  const buildSectionItems = (ids: string[]): NavItem[] =>
+    ids.map((id) => navItems.find((item) => item.id === id)).filter((item): item is NavItem => Boolean(item));
+
+  const navSections: NavSection[] = [
+    {
+      id: "content",
+      label: "Content & Moderation",
+      items: buildSectionItems([
+        "posts",
+        "users",
+        "content-types-admin",
+        "reports-moderation",
+        "site-config",
+        "system-control",
+      ]),
+    },
+    {
+      id: "books",
+      label: "Books & Library",
+      items: buildSectionItems([
+        "book-writing-engine",
+        "book-approval-admin",
+        "occult-library-admin",
+        "featured-books-slider-admin",
+      ]),
+    },
+    {
+      id: "creative",
+      label: "Creative Studio",
+      items: buildSectionItems([
+        "design-editor",
+        "ai-image-generator",
+        "cinematic-engine",
+        "cinematic-frame-editor",
+        "frame-manager",
+        "infernal-animation",
+        "animation-sessions-admin",
+        "header-footer-management",
+        "seo-management",
+      ]),
+    },
+    {
+      id: "community",
+      label: "Community & Features",
+      items: buildSectionItems([
+        "ritual-calendar-admin",
+        "allies-coven-admin",
+        "infernal-chat-admin",
+        "ouija-chamber-admin",
+        "tarot-rune-admin",
+        "gaming-hub",
+        "my-castle-admin",
+      ]),
+    },
+    {
+      id: "monetization",
+      label: "Monetization",
+      items: buildSectionItems([
+        "prime-store-admin",
+        "premium-services-admin",
+        "feature-flags",
+        "premium-token-generator",
+        "access-keys-admin",
+      ]),
+    },
+    {
+      id: "audit",
+      label: "Audit & Security",
+      items: buildSectionItems([
+        "schema-forensics",
+        "security-audit",
+        "error-analysis",
+        "performance-metrics",
+        "module-inventory",
+        "audit-history",
+        "action-items",
+        "system-audit",
+        "integration-report",
+        "site-audit-dashboard",
+        "module-registry",
+      ]),
+    },
+    {
+      id: "ai",
+      label: "AI Operations",
+      items: buildSectionItems([
+        "feature-instructions",
+        "super-admin-ai",
+        "ai-fix-dashboard",
+        "ai-fix-list",
+        "ai-asset-viewer",
+      ]),
+    },
+  ];
+
+  const hasVisibleNavItems = navSections.some((section) => section.items.length > 0);
 
   useEffect(() => {
-    if (isAdmin) {
-      fetchPosts();
+    if (typeof window !== "undefined") {
+      setSidebarOpen(window.innerWidth >= 768);
     }
-  }, [isAdmin, filterUser, filterType, filterVisibility]);
+    checkAdminAccess();
+  }, []);
 
   const checkAdminAccess = async () => {
     setAuthChecking(true);
     try {
-      const { data:  { user } } = await supabase.auth.getUser();
-      
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
       if (!user) {
         console.log("❌ No user logged in");
         toast.error("Please log in to access admin panel");
@@ -189,7 +269,7 @@ export default function SuperAdmin() {
 
       console.log("🔍 Checking superadmin access for:", user.email, user.id);
 
-      const { data:   allRoles, error:   rolesError } = await (supabase as any)
+      const { data: allRoles, error: rolesError } = await (supabase as any)
         .from("user_roles")
         .select("*")
         .eq("user_id", user.id);
@@ -203,14 +283,14 @@ export default function SuperAdmin() {
         return;
       }
 
-      if (! allRoles || allRoles. length === 0) {
+      if (!allRoles || allRoles.length === 0) {
         console.log("❌ No roles found for user");
         toast.error("Access Denied - No roles assigned to your account");
         navigate("/dashboard");
         return;
       }
 
-      console.log("📋 All roles found:", allRoles. map((r: any) => r.role).join(", "));
+      console.log("📋 All roles found:", allRoles.map((r: any) => r.role).join(", "));
 
       const hasSuperAdmin = allRoles.some((r: any) => r.role === "superadmin");
       const hasAdmin = allRoles.some((r: any) => r.role === "admin");
@@ -227,13 +307,13 @@ export default function SuperAdmin() {
 
       console.log("✅ Access granted!");
       setIsAdmin(true);
-      
+
       if (hasSuperAdmin) {
         toast.success("🔥 Welcome Superadmin!");
       } else {
         toast.success("🛡️ Welcome Admin!");
       }
-    } catch (error:   any) {
+    } catch (error: any) {
       console.error("💥 Fatal error:", error);
       toast.error("System error: " + error.message);
       navigate("/auth");
@@ -242,193 +322,10 @@ export default function SuperAdmin() {
     }
   };
 
-  const fetchPosts = async () => {
-    setLoading(true);
-    try {
-      let query = (supabase as any)
-        .from("posts")
-        .select(`
-          *,
-          profiles(username)
-        `)
-        .order("created_at", { ascending:   false });
-
-      if (filterType !== "all") {
-        query = query.eq("post_type", filterType);
-      }
-      if (filterVisibility !== "all") {
-        query = query.eq("visibility", filterVisibility);
-      }
-
-      const { data, error } = await query;
-      
-      if (error) {
-        console.error("Error fetching posts:", error);
-        toast.error("Error fetching posts: " + error.message);
-        return;
-      }
-
-      let filteredData = data || [];
-
-      if (filterUser && filteredData.length > 0) {
-        filteredData = filteredData.filter((post: any) => {
-          const username = post.profiles?.username;
-          return username?. toLowerCase().includes(filterUser.toLowerCase());
-        });
-      }
-
-      setPosts(filteredData);
-
-      if (filteredData) {
-        filteredData.forEach((post: any) => fetchAnnotations(post.id));
-      }
-    } catch (error:  any) {
-      console.error("Fetch error:", error);
-      toast.error("Failed to load posts");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchAnnotations = async (postId: string) => {
-    const { data } = await (supabase as any)
-      .from("admin_annotations")
-      .select("*")
-      .eq("post_id", postId)
-      .order("created_at", { ascending: false });
-
-    if (data) {
-      setAnnotations(prev => ({ ...prev, [postId]: data }));
-    }
-  };
-
-  const logEdit = async (postId: string, editType: string, oldValue: any, newValue: any) => {
-    try {
-      const { data:   { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      await (supabase as any).from("admin_post_edits").insert({
-        post_id: postId,
-        admin_user_id: user.id,
-        edit_type: editType,
-        old_value:  oldValue,
-        new_value: newValue,
-      });
-    } catch (error) {
-      console.error("Log edit error:", error);
-    }
-  };
-
-  const handleSaveEdit = async (post: Post) => {
-    const state = editState[post.id];
-    if (!state) return;
-
-    const updates:   any = {
-      content: state.content,
-      visibility: state.visibility,
-      post_type: state. post_type,
-      updated_at: new Date().toISOString()
-    };
-
-    if (state.media_url !== post.media_url) {
-      updates.media_url = state.media_url || null;
-      updates.media_type = state. media_url ? "image" : null;
-    }
-
-    const { error } = await (supabase as any)
-      .from("posts")
-      .update(updates)
-      .eq("id", post.id);
-
-    if (error) {
-      toast.error("Error updating post");
-      return;
-    }
-
-    await logEdit(post.id, "full_edit", {
-      content: post.content,
-      visibility: post.visibility,
-      post_type: post.post_type,
-      media_url: post.media_url
-    }, updates);
-
-    setEditingPost(null);
-    toast.success("Post updated successfully");
-    fetchPosts();
-  };
-
-  const handleDeletePost = async (postId: string) => {
-    if (! confirm("Are you sure you want to delete this post?")) return;
-
-    try {
-      await (supabase as any).from("post_reactions").delete().eq("post_id", postId);
-      await (supabase as any).from("comments").delete().eq("post_id", postId);
-      await (supabase as any).from("admin_annotations").delete().eq("post_id", postId);
-
-      const { error } = await (supabase as any).from("posts").delete().eq("id", postId);
-
-      if (error) throw error;
-
-      toast.success("Post deleted successfully");
-      fetchPosts();
-    } catch (error:   any) {
-      console.error("Delete error:", error);
-      toast.error("Failed to delete post:  " + error.message);
-    }
-  };
-
-  const handleToggleFeatured = async (post: Post) => {
-    try {
-      const { error } = await (supabase as any)
-        .from("posts")
-        .update({ featured: !post.featured })
-        .eq("id", post.id);
-
-      if (error) throw error;
-
-      toast.success(post.featured ? "Removed from featured" : "Added to featured");
-      fetchPosts();
-    } catch (error:  any) {
-      toast.error("Failed to toggle featured status");
-    }
-  };
-
-  const handleToggleFlagged = async (post: Post) => {
-    try {
-      const { error } = await (supabase as any)
-        .from("posts")
-        .update({ flagged_for_review: !post.flagged_for_review })
-        .eq("id", post.id);
-
-      if (error) throw error;
-
-      toast.success(post.flagged_for_review ?  "Flag removed" : "Post flagged");
-      fetchPosts();
-    } catch (error:   any) {
-      toast.error("Failed to toggle flag status");
-    }
-  };
-
-  const handleAddAnnotation = async (postId: string) => {
-    const annotation = annotationText[postId]?.trim();
-    if (!annotation) return;
-
-    try {
-      const { error } = await (supabase as any)
-        .from("admin_annotations")
-        .insert({
-          post_id: postId,
-          admin_user_id: currentUser?. id,
-          annotation: annotation
-        });
-
-      if (error) throw error;
-
-      setAnnotationText(prev => ({ ...prev, [postId]: "" }));
-      toast.success("Annotation added");
-      fetchAnnotations(postId);
-    } catch (error: any) {
-      toast.error("Failed to add annotation");
+  const handleTabChange = (nextTab: string) => {
+    setActiveTab(nextTab);
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setSidebarOpen(false);
     }
   };
 
@@ -442,27 +339,27 @@ export default function SuperAdmin() {
     switch (activeTab) {
       case "posts":
         return <ContentModerationAdmin />;
-      case "users":  
+      case "users":
         return <UsersAdmin />;
-      case "site-config":  
+      case "site-config":
         return <SiteConfigAdmin />;
-      case "design-editor": 
+      case "design-editor":
         return <DesignEditor />;
       case "ai-image-generator":
         return <AIImageGenerator />;
-      case "book-writing-engine": 
+      case "book-writing-engine":
         return <BookWritingEngine />;
       case "book-approval-admin":
         return <BookApprovalAdmin />;
-      case "cinematic-engine": 
+      case "cinematic-engine":
         return <CinematicEngine />;
-      case "cinematic-frame-editor":  
+      case "cinematic-frame-editor":
         return <CinematicFrameEditor />;
       case "frame-manager":
         return <FrameManager />;
-      case "infernal-animation":  
+      case "infernal-animation":
         return <InfernalAnimation />;
-      case "featured-books-slider-admin":  
+      case "featured-books-slider-admin":
         return <FeaturedBooksSliderAdmin />;
       case "header-footer-management":
         return <HeaderFooterManagement />;
@@ -470,15 +367,15 @@ export default function SuperAdmin() {
         return <SEOManagement />;
       case "schema-forensics":
         return <SchemaForensics />;
-      case "security-audit":  
+      case "security-audit":
         return <SecurityAudit />;
       case "error-analysis":
         return <ErrorAnalysis />;
       case "performance-metrics":
         return <PerformanceMetrics />;
-      case "module-inventory": 
+      case "module-inventory":
         return <ModuleInventory />;
-      case "audit-history":  
+      case "audit-history":
         return <AuditHistory />;
       case "action-items":
         return <ActionItems />;
@@ -504,9 +401,11 @@ export default function SuperAdmin() {
         return <SuperAdminAI />;
       case "premium-services-admin":
         return <PremiumServicesAdmin />;
+      case "feature-flags":
+        return <FeatureFlagsAdmin />;
       case "ai-fix-dashboard":
         return <AIFixDashboard />;
-      case "ai-fix-list":  
+      case "ai-fix-list":
         return <AIFixList />;
       case "ai-asset-viewer":
         return <AIAssetViewer />;
@@ -530,7 +429,7 @@ export default function SuperAdmin() {
         return <MyCastleAdmin />;
       case "content-types-admin":
         return <ContentTypesAdmin />;
-      case "system-control":  
+      case "system-control":
         return <SystemControl />;
       default:
         return (
@@ -544,31 +443,40 @@ export default function SuperAdmin() {
 
   if (authChecking) {
     return (
-      <div className="fixed inset-0 z-9999 flex items-center justify-center bg-background">
+      <div className="fixed inset-0 z-70 flex items-center justify-center bg-background">
         <div className="text-center space-y-4">
           <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
           <p className="text-lg text-muted-foreground">Verifying admin access...</p>
-          <p className="text-sm text-muted-foreground">Check browser console (F12) for debug info</p>
         </div>
       </div>
     );
   }
 
-  if (! isAdmin) {
+  if (!isAdmin) {
     return null;
   }
 
   return (
-    <div className="fixed inset-0 z-9999 bg-background overflow-hidden">
+    <div className="fixed inset-0 z-60 bg-black text-white overflow-hidden">
       <div className="h-full flex flex-col">
-        <div className="border-b shrink-0">
+        <div className="border-b border-zinc-900 shrink-0 bg-black relative z-30">
           <div className="flex h-16 items-center px-4">
             <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => setSidebarOpen((v) => !v)}
+              >
+                <Menu className="h-4 w-4" />
+                <span>Menu</span>
+                <span className="sr-only">Open admin menu</span>
+              </Button>
               <ShieldIcon className="h-6 w-6 text-primary" />
               <h1 className="text-xl font-bold">Super Admin Panel</h1>
             </div>
             <div className="ml-auto flex items-center gap-4">
-              <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+              <Badge variant="outline" className="hidden sm:flex bg-primary/10 text-primary border-primary/30 max-w-[260px] truncate">
                 <Crown className="h-3 w-3 mr-1" />
                 {currentUser?.email}
               </Badge>
@@ -584,28 +492,32 @@ export default function SuperAdmin() {
           </div>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
-          <div className="border-b shrink-0">
-            <div className="px-4 overflow-x-auto">
-              <TabsList className="h-auto flex-wrap gap-2 bg-transparent">
-                {navItems.map((item) => (
-                  <TabsTrigger key={item.id} value={item.value} className="gap-2">
-                    <item.icon className="h-4 w-4" />
-                    {item.label}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </div>
-          </div>
+        <div className="flex-1 min-h-0 flex overflow-hidden">
+          <aside
+            className={`relative z-20 shrink-0 min-h-0 border-r border-zinc-900 bg-black overflow-hidden ${
+              sidebarOpen ? "w-[88vw] max-w-[360px] md:w-80" : "hidden"
+            }`}
+          >
+            {hasVisibleNavItems ? (
+              <div className="h-full min-h-0">
+                <SuperAdminNav activeTab={activeTab} sections={navSections} onTabChange={handleTabChange} />
+              </div>
+            ) : (
+              <div className="p-4 text-sm text-muted-foreground">
+                Navigation sections are unavailable.
+              </div>
+            )}
+          </aside>
 
-          <div className="flex-1 overflow-auto px-4 py-6">
-            {navItems.map((item) => (
-              <TabsContent key={item.id} value={item.value} className="h-full m-0">
-                {renderActiveTab()}
-              </TabsContent>
-            ))}
-          </div>
-        </Tabs>
+          <main className="relative z-10 flex-1 min-w-0 overflow-auto px-3 py-4 md:px-6 md:py-6 bg-black">
+            {!hasVisibleNavItems ? (
+              <div className="mb-4 rounded-md border border-destructive/40 bg-black px-4 py-3 text-sm text-destructive">
+                Navigation sections failed to load. Use the Menu button to access admin tools.
+              </div>
+            ) : null}
+            {renderActiveTab()}
+          </main>
+        </div>
       </div>
     </div>
   );

@@ -1,0 +1,173 @@
+{
+  "name": "ebooks",
+  "timestamp": "2026-07-22T00:45:13.795Z",
+  "tests": [
+    {
+      "name": "book-file-access",
+      "target": "https://khugyibzsujjgtddwzpa.supabase.co/functions/v1/get-book-file",
+      "config": {
+        "name": "book-file-access",
+        "target": "https://khugyibzsujjgtddwzpa.supabase.co/functions/v1/get-book-file",
+        "method": "POST",
+        "payload": {
+          "book_id": "test-book-id"
+        },
+        "headers": {
+          "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtodWd5aWJ6c3Vqamd0ZGR3enBhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAwMzczNzYsImV4cCI6MjA3NTYxMzM3Nn0.AqE_-hXoCwfrHp5jq_uXREiT_KJTD8ES2i8HlZWZvPQ"
+        },
+        "concurrency": 100,
+        "requests": 500
+      },
+      "results": {
+        "totalRequests": 500,
+        "successCount": 0,
+        "errorCount": 500,
+        "errorRate": "100.00",
+        "successRate": "0.00",
+        "totalDuration": "77200.73",
+        "averageLatency": "12800.60",
+        "p50Latency": "13656.77",
+        "p95Latency": "25683.44",
+        "p99Latency": "30632.34"
+      },
+      "errors": [
+        {
+          "status": 404,
+          "worker": 19,
+          "requestNum": 0
+        },
+        {
+          "status": 404,
+          "worker": 67,
+          "requestNum": 0
+        },
+        {
+          "status": 404,
+          "worker": 4,
+          "requestNum": 0
+        },
+        {
+          "status": 404,
+          "worker": 0,
+          "requestNum": 0
+        },
+        {
+          "status": 404,
+          "worker": 2,
+          "requestNum": 0
+        },
+        {
+          "status": 404,
+          "worker": 7,
+          "requestNum": 0
+        },
+        {
+          "status": 404,
+          "worker": 9,
+          "requestNum": 0
+        },
+        {
+          "status": 404,
+          "worker": 3,
+          "requestNum": 0
+        },
+        {
+          "status": 404,
+          "worker": 6,
+          "requestNum": 0
+        },
+        {
+          "status": 404,
+          "worker": 8,
+          "requestNum": 0
+        },
+        {
+          "status": 404,
+          "worker": 10,
+          "requestNum": 0
+        },
+        {
+          "status": 404,
+          "worker": 12,
+          "requestNum": 0
+        },
+        {
+          "status": 404,
+          "worker": 16,
+          "requestNum": 0
+        },
+        {
+          "status": 404,
+          "worker": 15,
+          "requestNum": 0
+        },
+        {
+          "status": 404,
+          "worker": 1,
+          "requestNum": 0
+        },
+        {
+          "status": 404,
+          "worker": 17,
+          "requestNum": 0
+        },
+        {
+          "status": 404,
+          "worker": 18,
+          "requestNum": 0
+        },
+        {
+          "status": 404,
+          "worker": 11,
+          "requestNum": 0
+        },
+        {
+          "status": 404,
+          "worker": 5,
+          "requestNum": 0
+        },
+        {
+          "status": 404,
+          "worker": 13,
+          "requestNum": 0
+        }
+      ]
+    },
+    {
+      "name": "Entitlement Check Enforced",
+      "status": "FAIL",
+      "error": "Entitlement check failed: Expected 401/403, got 404"
+    },
+    {
+      "name": "Signed URL Generation",
+      "status": "FAIL",
+      "error": "Signed URL test failed: Unexpected status: 404"
+    }
+  ],
+  "passed": 0,
+  "failed": 2,
+  "metrics": {
+    "P95 Latency": {
+      "actual": 25683.44,
+      "threshold": 500,
+      "operator": "<",
+      "unit": "ms",
+      "pass": false
+    },
+    "Error Rate": {
+      "actual": 100,
+      "threshold": 1,
+      "operator": "<",
+      "unit": "%",
+      "pass": false
+    },
+    "Success Rate": {
+      "actual": 0,
+      "threshold": 99,
+      "operator": ">",
+      "unit": "%",
+      "pass": false
+    }
+  },
+  "errors": []
+}

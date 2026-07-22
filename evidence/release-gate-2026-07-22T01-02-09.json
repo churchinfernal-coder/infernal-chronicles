@@ -1,0 +1,295 @@
+{
+  "timestamp": "2026-07-22T01:02:09.664Z",
+  "tests": {
+    "subscription": {
+      "name": "subscription-checkout",
+      "timestamp": "2026-07-22T01:01:59.175Z",
+      "endpoint": "SUPABASE/functions/v1/create-checkout-session",
+      "config": {
+        "concurrency": 50,
+        "requests": 500
+      },
+      "results": {
+        "totalRequests": 500,
+        "successCount": 0,
+        "errorCount": 500,
+        "errorRate": "100.00",
+        "successRate": "0.00",
+        "totalDuration": "5125.85",
+        "averageLatency": "471.47",
+        "p50Latency": "350.11",
+        "p95Latency": "1207.23",
+        "p99Latency": "1414.15"
+      },
+      "errors": [
+        {
+          "status": 400,
+          "worker": 0,
+          "requestNum": 0
+        },
+        {
+          "status": 400,
+          "worker": 1,
+          "requestNum": 0
+        },
+        {
+          "status": 400,
+          "worker": 7,
+          "requestNum": 0
+        },
+        {
+          "status": 400,
+          "worker": 6,
+          "requestNum": 0
+        },
+        {
+          "status": 400,
+          "worker": 4,
+          "requestNum": 0
+        },
+        {
+          "status": 400,
+          "worker": 3,
+          "requestNum": 0
+        },
+        {
+          "status": 400,
+          "worker": 8,
+          "requestNum": 0
+        },
+        {
+          "status": 400,
+          "worker": 12,
+          "requestNum": 0
+        },
+        {
+          "status": 400,
+          "worker": 9,
+          "requestNum": 0
+        },
+        {
+          "status": 400,
+          "worker": 32,
+          "requestNum": 0
+        }
+      ]
+    },
+    "ebook": {
+      "name": "ebook-access",
+      "timestamp": "2026-07-22T01:02:05.494Z",
+      "endpoint": "SUPABASE/functions/v1/get-book-file",
+      "config": {
+        "concurrency": 100,
+        "requests": 500
+      },
+      "results": {
+        "totalRequests": 500,
+        "successCount": 0,
+        "errorCount": 500,
+        "errorRate": "100.00",
+        "successRate": "0.00",
+        "totalDuration": "6284.79",
+        "averageLatency": "1127.76",
+        "p50Latency": "726.56",
+        "p95Latency": "3232.18",
+        "p99Latency": "3413.31"
+      },
+      "errors": [
+        {
+          "status": 404,
+          "worker": 0,
+          "requestNum": 0
+        },
+        {
+          "status": 404,
+          "worker": 7,
+          "requestNum": 0
+        },
+        {
+          "status": 404,
+          "worker": 15,
+          "requestNum": 0
+        },
+        {
+          "status": 404,
+          "worker": 10,
+          "requestNum": 0
+        },
+        {
+          "status": 404,
+          "worker": 16,
+          "requestNum": 0
+        },
+        {
+          "status": 404,
+          "worker": 1,
+          "requestNum": 0
+        },
+        {
+          "status": 404,
+          "worker": 5,
+          "requestNum": 0
+        },
+        {
+          "status": 404,
+          "worker": 6,
+          "requestNum": 0
+        },
+        {
+          "status": 404,
+          "worker": 18,
+          "requestNum": 0
+        },
+        {
+          "status": 404,
+          "worker": 28,
+          "requestNum": 0
+        }
+      ]
+    },
+    "social": {
+      "name": "social-posting",
+      "timestamp": "2026-07-22T01:02:09.560Z",
+      "endpoint": "SUPABASE/functions/v1/get-stripe-prices",
+      "config": {
+        "concurrency": 50,
+        "requests": 500
+      },
+      "results": {
+        "totalRequests": 500,
+        "successCount": 201,
+        "errorCount": 299,
+        "errorRate": "59.80",
+        "successRate": "40.20",
+        "totalDuration": "4003.91",
+        "averageLatency": "366.57",
+        "p50Latency": "368.55",
+        "p95Latency": "553.44",
+        "p99Latency": "624.77"
+      },
+      "errors": [
+        {
+          "status": 500,
+          "worker": 42,
+          "requestNum": 0
+        },
+        {
+          "status": 500,
+          "worker": 32,
+          "requestNum": 0
+        },
+        {
+          "status": 500,
+          "worker": 37,
+          "requestNum": 0
+        },
+        {
+          "status": 500,
+          "worker": 47,
+          "requestNum": 0
+        },
+        {
+          "status": 500,
+          "worker": 40,
+          "requestNum": 0
+        },
+        {
+          "status": 500,
+          "worker": 46,
+          "requestNum": 0
+        },
+        {
+          "status": 500,
+          "worker": 38,
+          "requestNum": 0
+        },
+        {
+          "status": 500,
+          "worker": 39,
+          "requestNum": 0
+        },
+        {
+          "status": 500,
+          "worker": 30,
+          "requestNum": 0
+        },
+        {
+          "status": 500,
+          "worker": 45,
+          "requestNum": 0
+        }
+      ]
+    }
+  },
+  "decisions": {
+    "subscription": {
+      "name": "Subscription System",
+      "checks": [
+        {
+          "criterion": "P95 Latency < 200ms",
+          "actual": "1207.23ms",
+          "pass": false
+        },
+        {
+          "criterion": "Error Rate < 1%",
+          "actual": "100.00%",
+          "pass": false
+        },
+        {
+          "criterion": "Success Rate > 99%",
+          "actual": "0.00%",
+          "pass": false
+        }
+      ],
+      "passage": "FAIL"
+    },
+    "ebook": {
+      "name": "E-Book Delivery",
+      "checks": [
+        {
+          "criterion": "P95 Latency < 500ms",
+          "actual": "3232.18ms",
+          "pass": false
+        },
+        {
+          "criterion": "Error Rate < 1%",
+          "actual": "100.00%",
+          "pass": false
+        },
+        {
+          "criterion": "Success Rate > 99%",
+          "actual": "0.00%",
+          "pass": false
+        }
+      ],
+      "passage": "FAIL"
+    },
+    "social": {
+      "name": "Social APIs",
+      "checks": [
+        {
+          "criterion": "P95 Latency < 200ms",
+          "actual": "553.44ms",
+          "pass": false
+        },
+        {
+          "criterion": "Error Rate < 1%",
+          "actual": "59.80%",
+          "pass": false
+        },
+        {
+          "criterion": "Success Rate > 99%",
+          "actual": "40.20%",
+          "pass": false
+        }
+      ],
+      "passage": "FAIL"
+    }
+  },
+  "overallPassage": false,
+  "criticalFailures": [
+    "Subscription: FAIL",
+    "E-Book: FAIL",
+    "Social: FAIL"
+  ]
+}
