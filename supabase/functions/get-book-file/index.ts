@@ -12,7 +12,7 @@ const SIGNED_URL_TTL_SECONDS = 300;
 const AUTH_CACHE_TTL_MS = 30_000;
 const BOOK_CACHE_TTL_MS = 60_000;
 const ENTITLEMENT_CACHE_TTL_MS = 20_000;
-const SIGNED_URL_CACHE_TTL_MS = 20_000;
+const SIGNED_URL_CACHE_TTL_MS = 240_000;
 const CACHE_MAX = 2000;
 
 const supabase = createClient(
@@ -25,6 +25,7 @@ const authCache = new Map<string, { id: string; expiresAt: number }>();
 const bookCache = new Map<string, { title: string; storagePath: string; expiresAt: number }>();
 const entitlementCache = new Map<string, { hasAccess: boolean; expiresAt: number }>();
 const signedUrlCache = new Map<string, { url: string; title: string; expiresIn: number; expiresAt: number }>();
+const signingInFlight = new Map<string, Promise<{ url: string; title: string; expiresIn: number }>>();
 
 function normalizeStoragePath(value: string): string {
   const trimmed = String(value || "").trim();
@@ -148,6 +149,47 @@ async function resolveAccess(userId: string, bookId: string): Promise<boolean> {
   return hasAccess;
 }
 
+async function generateSignedPayload(
+  signedKey: string,
+  storagePath: string,
+  title: string,
+  download: boolean
+): Promise<{ url: string; title: string; expiresIn: number }> {
+  const existing = signingInFlight.get(signedKey);
+  if (existing) {
+    return existing;
+  }
+
+  const work = (async () => {
+    const safeName = `${(title || "book").replace(/[^\w.-]+/g, "_")}.pdf`;
+    const { data: signed, error: signError } = await supabase.storage
+      .from("book-pdfs")
+      .createSignedUrl(
+        storagePath,
+        SIGNED_URL_TTL_SECONDS,
+        download ? { download: safeName } : undefined
+      );
+
+    if (signError || !signed?.signedUrl) {
+      throw new Error("Could not generate access link");
+    }
+
+    return {
+      url: signed.signedUrl,
+      title,
+      expiresIn: SIGNED_URL_TTL_SECONDS,
+    };
+  })();
+
+  signingInFlight.set(signedKey, work);
+
+  try {
+    return await work;
+  } finally {
+    signingInFlight.delete(signedKey);
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { status: 200, headers: corsHeaders });
@@ -198,24 +240,12 @@ serve(async (req) => {
     }
 
     // 5. Issue a short-lived signed URL to the private object.
-    const safeName = `${(book.title || "book").replace(/[^\w.-]+/g, "_")}.pdf`;
-    const { data: signed, error: signError } = await supabase.storage
-      .from("book-pdfs")
-      .createSignedUrl(
-        book.storagePath,
-        SIGNED_URL_TTL_SECONDS,
-        download ? { download: safeName } : undefined
-      );
-
-    if (signError || !signed?.signedUrl) {
-      return json({ error: "Could not generate access link" }, 500);
-    }
-
-    const responsePayload = {
-      url: signed.signedUrl,
-      title: book.title,
-      expiresIn: SIGNED_URL_TTL_SECONDS,
-    };
+    const responsePayload = await generateSignedPayload(
+      signedKey,
+      book.storagePath,
+      book.title,
+      download
+    );
 
     setLimitedCache(signedUrlCache, signedKey, {
       ...responsePayload,
