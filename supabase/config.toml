@@ -89,3 +89,24 @@ verify_jwt = true
 
 [functions.ai-generate-feature-instructions]
 verify_jwt = true
+
+[functions.admin-sql-exec]
+verify_jwt = true
+
+[functions.admin-users]
+verify_jwt = true
+
+[functions.ai-error-analyzer]
+verify_jwt = true
+
+[functions.ai-deploy-fix]
+verify_jwt = true
+
+[functions.get-book-file]
+verify_jwt = true
+
+[functions.get-book-content]
+verify_jwt = true
+
+[functions.ai-generate-book-cover]
+verify_jwt = true

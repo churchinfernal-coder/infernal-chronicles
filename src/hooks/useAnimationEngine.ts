@@ -8,6 +8,7 @@ interface GenerationOptions {
   lighting: string;
   aspectRatio: string;
   frameCount: number;
+  sourceProjectId?: string;
 }
 
 export function useAnimationEngine() {
@@ -41,6 +42,7 @@ export function useAnimationEngine() {
             background: options.background,
             lighting: options.lighting,
             aspectRatio: options.aspectRatio,
+            sourceProjectId: options.sourceProjectId || null,
           }
         })
         .select()
@@ -58,6 +60,7 @@ export function useAnimationEngine() {
           lighting: options.lighting,
           aspectRatio: options.aspectRatio,
           frameCount: options.frameCount,
+          sourceProjectId: options.sourceProjectId || undefined,
         }
       });
 

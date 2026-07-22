@@ -1,0 +1,13 @@
+{
+  "name": "subscriptions",
+  "timestamp": "2026-07-22T00:42:41.580Z",
+  "tests": [],
+  "passed": 0,
+  "failed": 0,
+  "metrics": {},
+  "errors": [
+    {
+      "message": "Missing VITE_SUPABASE_ANON_KEY environment variable"
+    }
+  ]
+}

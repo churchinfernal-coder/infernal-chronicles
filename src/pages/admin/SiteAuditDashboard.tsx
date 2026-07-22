@@ -11,6 +11,7 @@ import { PerformanceMetrics } from "@/components/admin/audit/PerformanceMetrics"
 import { ModuleInventory } from "@/components/admin/audit/ModuleInventory";
 import { AuditHistory } from "@/components/admin/audit/AuditHistory";
 import { ActionItems } from "@/components/admin/audit/ActionItems";
+import { VideoMemoryDashboard } from "@/components/admin/audit/VideoMemoryDashboard";
 
 export default function SiteAuditDashboard() {
   const { toast } = useToast();
@@ -166,7 +167,7 @@ export default function SiteAuditDashboard() {
 
       {/* Audit Tabs */}
       <Tabs defaultValue="schema" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-8">
           <TabsTrigger value="schema">
             <Database className="h-4 w-4 mr-2" />
             Schema
@@ -194,6 +195,10 @@ export default function SiteAuditDashboard() {
           <TabsTrigger value="actions">
             <CheckSquare className="h-4 w-4 mr-2" />
             Actions
+          </TabsTrigger>
+          <TabsTrigger value="video-memory">
+            <Activity className="h-4 w-4 mr-2" />
+            Video Memory
           </TabsTrigger>
         </TabsList>
 
@@ -225,6 +230,10 @@ export default function SiteAuditDashboard() {
 
         <TabsContent value="actions">
           <ActionItems />
+        </TabsContent>
+
+        <TabsContent value="video-memory">
+          <VideoMemoryDashboard />
         </TabsContent>
       </Tabs>
     </div>

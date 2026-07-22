@@ -25,11 +25,7 @@ export default function ReportsModeration() {
     try {
       let query = supabase
         .from("reports")
-        .select(`
-          *,
-          reporter:profiles!reports_reporter_user_id_fkey(username),
-          reviewer:profiles!reports_reviewed_by_fkey(username)
-        `)
+        .select('*')
         .order("created_at", { ascending: false });
 
       if (filterStatus !== "all") {
@@ -39,7 +35,37 @@ export default function ReportsModeration() {
       const { data, error } = await query;
 
       if (error) throw error;
-      setReports(data || []);
+
+      const reportRows = (data || []) as any[];
+      const userIds = Array.from(
+        new Set(
+          reportRows
+            .flatMap((r) => [r.reporter_user_id, r.reviewed_by])
+            .filter(Boolean)
+        )
+      );
+
+      let profileMap: Record<string, string> = {};
+      if (userIds.length > 0) {
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('user_id, username')
+          .in('user_id', userIds);
+
+        if (profilesError) {
+          console.warn('Failed to hydrate report usernames:', profilesError);
+        } else {
+          profileMap = Object.fromEntries((profiles || []).map((p: any) => [p.user_id, p.username]));
+        }
+      }
+
+      setReports(
+        reportRows.map((report) => ({
+          ...report,
+          reporter: { username: profileMap[report.reporter_user_id] || 'Unknown' },
+          reviewer: { username: profileMap[report.reviewed_by] || 'Unknown' },
+        }))
+      );
     } catch (error: any) {
       toast.error("Failed to fetch reports");
       console.error(error);

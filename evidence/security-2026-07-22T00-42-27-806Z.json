@@ -1,0 +1,65 @@
+{
+  "name": "security",
+  "timestamp": "2026-07-22T00:42:27.806Z",
+  "tests": [
+    {
+      "name": "HTTPS Enforced",
+      "status": "PASS",
+      "duration": "0.18",
+      "detail": "HTTPS enforced on all endpoints"
+    },
+    {
+      "name": "Auth Required - Subscriptions",
+      "status": "PASS",
+      "duration": "1249.99",
+      "detail": "Auth correctly enforced (401/403)"
+    },
+    {
+      "name": "Auth Required - E-Books",
+      "status": "FAIL",
+      "error": "Auth check failed: Expected 401/403, got 404"
+    },
+    {
+      "name": "Invalid JWT Rejected",
+      "status": "FAIL",
+      "error": "JWT validation failed: Expected 401/403 for invalid JWT, got 404"
+    },
+    {
+      "name": "SQL Injection Protection",
+      "status": "PASS",
+      "duration": "63.43",
+      "detail": "SQL injection safely rejected"
+    },
+    {
+      "name": "XSS Prevention",
+      "status": "PASS",
+      "duration": "127.91",
+      "detail": "XSS prevention verified"
+    },
+    {
+      "name": "Rate Limiting Configuration",
+      "status": "PASS",
+      "duration": "115.18",
+      "detail": "Rate limiting headers configured",
+      "rateLimit": "Not explicitly set"
+    },
+    {
+      "name": "CORS Headers Configured",
+      "status": "PASS",
+      "duration": "133.39",
+      "detail": "CORS headers should be set on edge functions",
+      "recommendation": "Verify in edge function config"
+    }
+  ],
+  "passed": 6,
+  "failed": 2,
+  "metrics": {
+    "All Security Checks": {
+      "actual": 2,
+      "threshold": 0,
+      "operator": "===",
+      "pass": false
+    }
+  },
+  "errors": []
+}

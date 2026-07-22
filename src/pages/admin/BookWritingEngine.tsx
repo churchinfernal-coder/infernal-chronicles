@@ -30,6 +30,7 @@ interface Chapter {
 interface BookProject {
   id: string;
   title: string;
+  author: string;
   genre: string;
   prompt: string;
   characters: Character[];
@@ -55,6 +56,7 @@ export default function BookWritingEngine() {
 
   const [newProject, setNewProject] = useState({
     title: "",
+    author: "Infernal Chronicles",
     genre: "fiction",
     prompt: "",
     setting: "",
@@ -157,7 +159,7 @@ export default function BookWritingEngine() {
       .insert({
         book_project_id: selectedProject.id,
         title: selectedProject.title,
-        author: 'Infernal Chronicles',
+        author: selectedProject.author || 'Infernal Chronicles',
         description: selectedProject.prompt,
         price_cents: 999,
         category: selectedProject.genre,
@@ -176,7 +178,35 @@ export default function BookWritingEngine() {
         variant: "destructive"
       });
     } else {
-      toast({ title: "Book published to Occult Library!" });
+      try {
+        const { error: coverError } = await supabase.functions.invoke('ai-generate-book-cover', {
+          body: {
+            bookId: data.id,
+            title: selectedProject.title,
+            author: selectedProject.author || 'Infernal Chronicles',
+            description: selectedProject.prompt,
+            genre: selectedProject.genre,
+            setting: selectedProject.setting,
+          }
+        });
+
+        if (coverError) {
+          toast({
+            title: "Book published (cover generation failed)",
+            description: coverError.message,
+            variant: "destructive"
+          });
+        } else {
+          toast({ title: "Book published with AI cover to Occult Library" });
+        }
+      } catch (coverErr: any) {
+        toast({
+          title: "Book published (cover generation failed)",
+          description: coverErr.message,
+          variant: "destructive"
+        });
+      }
+
       loadPublishedBooks();
     }
     setPublishing(false);
@@ -358,6 +388,7 @@ export default function BookWritingEngine() {
       setSelectedProject(mappedData);
       setNewProject({
         title:  "",
+        author: "Infernal Chronicles",
         genre: "fiction",
         prompt: "",
         setting: "",
@@ -580,7 +611,7 @@ export default function BookWritingEngine() {
               <CardDescription>Start a new book writing project</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="title">Book Title</Label>
                   <Input
@@ -588,6 +619,15 @@ export default function BookWritingEngine() {
                     value={newProject. title}
                     onChange={(e) => setNewProject({ ...newProject, title: e. target.value })}
                     placeholder="Enter book title"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="author">Author</Label>
+                  <Input
+                    id="author"
+                    value={newProject.author}
+                    onChange={(e) => setNewProject({ ...newProject, author: e.target.value })}
+                    placeholder="Author name shown in library"
                   />
                 </div>
                 <div>
@@ -603,6 +643,8 @@ export default function BookWritingEngine() {
                       <SelectItem value="romance">Romance</SelectItem>
                       <SelectItem value="science-fiction">Science Fiction</SelectItem>
                       <SelectItem value="fantasy">Fantasy</SelectItem>
+                      <SelectItem value="occult">Occult</SelectItem>
+                      <SelectItem value="adult">Adult</SelectItem>
                       <SelectItem value="thriller">Thriller</SelectItem>
                     </SelectContent>
                   </Select>
