@@ -10,6 +10,22 @@ const corsHeaders = {
 // Short-lived signed URL so a link cannot be shared/re-used for long.
 const SIGNED_URL_TTL_SECONDS = 300;
 
+function normalizeStoragePath(value: string): string {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return "";
+
+  // Handle full public/signed URLs by extracting the object path after /book-pdfs/.
+  const marker = "/book-pdfs/";
+  const markerIndex = trimmed.indexOf(marker);
+  if (markerIndex >= 0) {
+    const rawPath = trimmed.slice(markerIndex + marker.length);
+    const withoutQuery = rawPath.split("?")[0];
+    return decodeURIComponent(withoutQuery).replace(/^\/+/, "");
+  }
+
+  return trimmed.replace(/^\/+/, "");
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { status: 200, headers: corsHeaders });
@@ -29,12 +45,14 @@ serve(async (req) => {
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
     if (userError || !user) {
-      return json({ error: "Invalid user token" }, 401);
+      return json({ error: "Access denied" }, 403);
     }
 
     // 2. Validate input. `download: true` returns a URL that forces a file
     //    download (Content-Disposition: attachment) instead of inline viewing.
-    const { bookId, download } = await req.json();
+    const payload = await req.json();
+    const bookId = payload?.bookId || payload?.book_id;
+    const download = payload?.download;
     if (!bookId) {
       return json({ error: "Missing bookId" }, 400);
     }
@@ -49,13 +67,14 @@ serve(async (req) => {
     if (bookError || !book) {
       return json({ error: "Book not found" }, 404);
     }
-    if (!book.pdf_url) {
+    const storagePath = normalizeStoragePath(book.pdf_url || "");
+    if (!storagePath) {
       return json({ error: "PDF not available for this book" }, 404);
     }
 
     // 4. Enforce the entitlement rule server-side:
     //    active subscription OR an individual purchase OR admin.
-    const [{ data: sub }, { data: purchase }, { data: isAdmin }] = await Promise.all([
+    const [{ data: sub }, { data: purchase }] = await Promise.all([
       supabase
         .from("occult_subscriptions")
         .select("id")
@@ -68,10 +87,16 @@ serve(async (req) => {
         .eq("user_id", user.id)
         .eq("book_id", bookId)
         .maybeSingle(),
-      supabase.rpc("has_role", { _user_id: user.id, _role: "admin" }),
     ]);
 
-    const hasAccess = Boolean(sub) || Boolean(purchase) || isAdmin === true;
+    let hasAccess = Boolean(sub) || Boolean(purchase);
+
+    // Admin lookup is a fallback only when subscription/purchase checks miss.
+    if (!hasAccess) {
+      const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: user.id, _role: "admin" });
+      hasAccess = isAdmin === true;
+    }
+
     if (!hasAccess) {
       return json({ error: "Subscribe or purchase to read this book" }, 403);
     }
@@ -81,7 +106,7 @@ serve(async (req) => {
     const { data: signed, error: signError } = await supabase.storage
       .from("book-pdfs")
       .createSignedUrl(
-        book.pdf_url,
+        storagePath,
         SIGNED_URL_TTL_SECONDS,
         download ? { download: safeName } : undefined
       );
