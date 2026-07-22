@@ -10,11 +10,14 @@ const corsHeaders = {
 const FALLBACK_PROJECT_SCOPE = "00000000-0000-0000-0000-000000000000";
 
 type SemanticVideoMemoryRow = {
+  id: string;
   symbol: string;
   style: string;
   narrative_theme: string;
   video_prompt: string;
   similarity: number;
+  motif_weight: number;
+  project_recurrence: number;
 };
 
 type CriticResult = {
@@ -23,6 +26,45 @@ type CriticResult = {
   notes: string;
   revisedPrompt: string;
 };
+
+type AuditActor = {
+  id: string;
+  role: string;
+  type: "admin" | "system" | "function";
+};
+
+function logStructured(event: string, payload: Record<string, unknown>) {
+  console.log(JSON.stringify({
+    ts: new Date().toISOString(),
+    event,
+    ...payload,
+  }));
+}
+
+async function logAudit(
+  supabase: ReturnType<typeof createClient>,
+  input: {
+    actor: AuditActor;
+    action: string;
+    sourceFunction: string;
+    sourceProjectId: string;
+    memoryId?: string | null;
+    requestId: string;
+    metadata?: Record<string, unknown>;
+  }
+) {
+  await supabase.rpc("log_video_memory_audit", {
+    _actor_id: input.actor.id,
+    _actor_role: input.actor.role,
+    _actor_type: input.actor.type,
+    _action: input.action,
+    _source_function: input.sourceFunction,
+    _source_project_id: input.sourceProjectId,
+    _memory_id: input.memoryId || null,
+    _request_id: input.requestId,
+    _metadata: input.metadata || {},
+  }).then(() => null).catch(() => null);
+}
 
 function json(body: unknown, status: number) {
   return new Response(JSON.stringify(body), {
@@ -192,11 +234,14 @@ async function queryVideoMemory(
   return data
     .filter((row: any) => typeof row?.symbol === "string")
     .map((row: any) => ({
+      id: String(row.id),
       symbol: row.symbol,
       style: typeof row.style === "string" ? row.style : "cinematic",
       narrative_theme: typeof row.narrative_theme === "string" ? row.narrative_theme : "ritual",
       video_prompt: typeof row.video_prompt === "string" ? row.video_prompt : "",
       similarity: Number(row.similarity || 0),
+      motif_weight: Number(row.motif_weight || 1),
+      project_recurrence: Number(row.project_recurrence || 1),
     }));
 }
 
@@ -256,6 +301,66 @@ async function queryEngineThemes(
   }
 }
 
+async function discoverNewMotifs(
+  supabase: ReturnType<typeof createClient>,
+  input: {
+    requiredSymbols: string[];
+    requiredThemes: string[];
+    recalledSymbols: string[];
+    recalledThemes: string[];
+  }
+): Promise<{ symbols: string[]; themes: string[] }> {
+  const symbolGap = input.requiredSymbols.filter((s) => !input.recalledSymbols.includes(s)).length;
+  const themeGap = input.requiredThemes.filter((t) => !input.recalledThemes.includes(t)).length;
+  const shouldDiscover = symbolGap >= 2 || themeGap >= 1;
+
+  if (!shouldDiscover) {
+    return { symbols: [], themes: [] };
+  }
+
+  const { data, error } = await (supabase as any)
+    .from("video_memory")
+    .select("symbol, narrative_theme, motif_weight, project_recurrence")
+    .order("project_recurrence", { ascending: false })
+    .order("motif_weight", { ascending: false })
+    .limit(50);
+
+  if (error || !Array.isArray(data)) {
+    return { symbols: [], themes: [] };
+  }
+
+  const discoveredSymbols = uniq(
+    data
+      .map((row: any) => String(row?.symbol || "").trim())
+      .filter((symbol: string) => symbol && !input.requiredSymbols.includes(symbol))
+  ).slice(0, 3);
+
+  const discoveredThemes = uniq(
+    data
+      .map((row: any) => String(row?.narrative_theme || "").trim())
+      .filter((theme: string) => theme && !input.requiredThemes.includes(theme))
+  ).slice(0, 2);
+
+  return {
+    symbols: discoveredSymbols,
+    themes: discoveredThemes,
+  };
+}
+
+function computeAdaptivePriorities(rows: SemanticVideoMemoryRow[]): string[] {
+  const weighted = rows
+    .map((row) => {
+      const priority = Number((row.motif_weight * Math.max(row.project_recurrence, 1) * Math.max(row.similarity, 0.05)).toFixed(3));
+      return {
+        symbol: row.symbol,
+        priority,
+      };
+    })
+    .sort((a, b) => b.priority - a.priority);
+
+  return uniq(weighted.map((entry) => entry.symbol)).slice(0, 5);
+}
+
 function buildVideoPrompt(input: {
   prompt: string;
   style: string;
@@ -270,6 +375,9 @@ function buildVideoPrompt(input: {
   recalledStyles: string[];
   engineThemes: string[];
   imageSymbols: string[];
+  adaptivePriorities: string[];
+  discoveredSymbols: string[];
+  discoveredThemes: string[];
 }): string {
   const recalledStyleLine = input.recalledStyles.length
     ? `Reference continuity styles: ${input.recalledStyles.join(", ")}.`
@@ -282,6 +390,14 @@ function buildVideoPrompt(input: {
   const imageLine = input.imageSymbols.length
     ? `Cross-modal visual symbols from image memory: ${input.imageSymbols.join(", ")}.`
     : "Cross-modal visual symbols from image memory: mirror the dominant occult motifs.";
+
+  const adaptiveLine = input.adaptivePriorities.length
+    ? `Adaptive motif priorities (high recurrence): ${input.adaptivePriorities.join(", ")}.`
+    : "Adaptive motif priorities: keep recurrent motifs stable over time.";
+
+  const discoveryLine = input.discoveredSymbols.length || input.discoveredThemes.length
+    ? `Self-initiated motif discovery: add ${input.discoveredSymbols.join(", ") || "none"} and themes ${input.discoveredThemes.join(", ") || "none"} to close semantic gaps.`
+    : "Self-initiated motif discovery: no new motifs needed for this generation.";
 
   return [
     "Create a premium cinematic video sequence with frame-by-frame continuity.",
@@ -298,6 +414,8 @@ function buildVideoPrompt(input: {
     recalledStyleLine,
     engineThemeLine,
     imageLine,
+    adaptiveLine,
+    discoveryLine,
     "Design requirements: maintain recurring motifs across frames, no readable text, no watermark, no compression artifacts, cinematic motion, temporal continuity, strong atmospheric lighting.",
     "Output should be suitable for a frame sequence or video render pipeline.",
   ].join("\n");
@@ -388,8 +506,18 @@ async function persistVideoMemory(input: {
   durationSeconds: number;
   videoFormat: string;
   critic: CriticResult;
+  actor: AuditActor;
+  requestId: string;
+  sourceFunction: string;
 }) {
   const primaryTheme = input.themes[0] || "ritual";
+
+  await input.supabase.rpc("set_video_memory_actor_context", {
+    _actor_id: input.actor.id,
+    _actor_role: input.actor.role,
+    _actor_type: input.actor.type,
+    _change_reason: "generator-write",
+  }).then(() => null).catch(() => null);
 
   for (const symbol of input.symbols) {
     const embedding = await getEmbeddingVector(
@@ -397,7 +525,7 @@ async function persistVideoMemory(input: {
       `${symbol} ${input.style} ${primaryTheme} ${input.videoPrompt}`
     );
 
-    await (input.supabase as any)
+    const { data: row, error } = await (input.supabase as any)
       .from("video_memory")
       .upsert(
         {
@@ -412,10 +540,47 @@ async function persistVideoMemory(input: {
           embedding,
           critic_score: input.critic.score,
           critic_notes: input.critic.notes,
-          source_function: "ai-cinematic-generate",
+          source_function: input.sourceFunction,
         },
         { onConflict: "symbol,style,narrative_theme,source_project_id" }
-      );
+      )
+      .select("id")
+      .single();
+
+    if (error) {
+      continue;
+    }
+
+    await input.supabase.rpc("recalculate_video_memory_weights", {
+      _symbol: symbol,
+      _style: input.style,
+      _narrative_theme: primaryTheme,
+    }).then(() => null).catch(() => null);
+
+    await logAudit(input.supabase, {
+      actor: input.actor,
+      action: "memory_write",
+      sourceFunction: input.sourceFunction,
+      sourceProjectId: input.projectScopeId,
+      memoryId: row?.id || null,
+      requestId: input.requestId,
+      metadata: {
+        symbol,
+        style: input.style,
+        narrativeTheme: primaryTheme,
+        criticScore: input.critic.score,
+      },
+    });
+
+    logStructured("video_memory.write", {
+      requestId: input.requestId,
+      projectScopeId: input.projectScopeId,
+      symbol,
+      style: input.style,
+      narrativeTheme: primaryTheme,
+      memoryId: row?.id || null,
+      criticScore: input.critic.score,
+    });
   }
 }
 
@@ -425,6 +590,8 @@ serve(async (req) => {
   }
 
   try {
+    const requestId = crypto.randomUUID();
+    const sourceFunction = "ai-cinematic-generate";
     const openAIApiKey = Deno.env.get("OPENAI_API_KEY");
     if (!openAIApiKey) {
       return json({ error: "OPENAI_API_KEY not configured" }, 500);
@@ -445,6 +612,12 @@ serve(async (req) => {
     if (isAdmin !== true) {
       return json({ error: "Forbidden: admin role required" }, 403);
     }
+
+    const actor: AuditActor = {
+      id: user.id,
+      role: "admin",
+      type: "admin",
+    };
 
     const {
       prompt,
@@ -481,13 +654,40 @@ serve(async (req) => {
     const imageSymbols = await queryImageMemory(supabase, queryEmbedding, projectScopeId);
     const engineThemes = await queryEngineThemes(supabase, projectScopeId);
 
+    logStructured("video_memory.read", {
+      requestId,
+      projectScopeId,
+      semanticResults: videoRows.length,
+      imageSymbols: imageSymbols.length,
+      engineThemes: engineThemes.length,
+    });
+    await logAudit(supabase, {
+      actor,
+      action: "memory_read",
+      sourceFunction,
+      sourceProjectId: projectScopeId,
+      requestId,
+      metadata: {
+        semanticResults: videoRows.length,
+        imageSymbols: imageSymbols.length,
+        engineThemes: engineThemes.length,
+      },
+    });
+
     const recalledSymbols = uniq(videoRows.map((row) => row.symbol)).slice(0, 8);
     const recalledStyles = uniq(videoRows.map((row) => row.style)).slice(0, 4);
     const recalledThemes = uniq(videoRows.map((row) => row.narrative_theme)).slice(0, 4);
     const extractedSymbols = extractVideoSymbols(prompt);
     const extractedThemes = extractNarrativeThemes(prompt);
-    const requiredSymbols = uniq([...extractedSymbols, ...recalledSymbols, ...imageSymbols]).slice(0, 10);
-    const requiredThemes = uniq([...extractedThemes, ...recalledThemes, ...engineThemes]).slice(0, 8);
+    const discovered = await discoverNewMotifs(supabase, {
+      requiredSymbols: uniq([...extractedSymbols, ...recalledSymbols, ...imageSymbols]).slice(0, 10),
+      requiredThemes: uniq([...extractedThemes, ...recalledThemes, ...engineThemes]).slice(0, 8),
+      recalledSymbols,
+      recalledThemes,
+    });
+    const adaptivePriorities = computeAdaptivePriorities(videoRows);
+    const requiredSymbols = uniq([...extractedSymbols, ...recalledSymbols, ...imageSymbols, ...discovered.symbols]).slice(0, 10);
+    const requiredThemes = uniq([...extractedThemes, ...recalledThemes, ...engineThemes, ...discovered.themes]).slice(0, 8);
 
     const videoPrompt = buildVideoPrompt({
       prompt,
@@ -503,10 +703,35 @@ serve(async (req) => {
       recalledStyles,
       engineThemes,
       imageSymbols,
+      adaptivePriorities,
+      discoveredSymbols: discovered.symbols,
+      discoveredThemes: discovered.themes,
     });
 
     const critic = runCriticPass(videoPrompt, [...requiredSymbols.slice(0, 5), ...requiredThemes.slice(0, 3)]);
     const finalPrompt = strictCritic === true ? critic.revisedPrompt : videoPrompt;
+
+    logStructured("video_memory.critic", {
+      requestId,
+      projectScopeId,
+      score: critic.score,
+      missingMotifs: critic.missingMotifs,
+      strictCritic: strictCritic === true,
+    });
+    await logAudit(supabase, {
+      actor,
+      action: "critic_pass",
+      sourceFunction,
+      sourceProjectId: projectScopeId,
+      requestId,
+      metadata: {
+        score: critic.score,
+        missingMotifs: critic.missingMotifs,
+        strictCritic: strictCritic === true,
+        discoveredSymbols: discovered.symbols,
+        discoveredThemes: discovered.themes,
+      },
+    });
 
     if (dryRun === true) {
       return json(
@@ -523,6 +748,10 @@ serve(async (req) => {
           durationSeconds,
           projectScopeId,
           readSource: videoRows.length > 0 ? "video_memory.semantic" : "fallback",
+          discoveredSymbols: discovered.symbols,
+          discoveredThemes: discovered.themes,
+          adaptivePriorities,
+          requestId,
         },
         200
       );
@@ -542,6 +771,9 @@ serve(async (req) => {
         durationSeconds,
         videoFormat,
         critic,
+        actor,
+        requestId,
+        sourceFunction,
       });
 
       return json(
@@ -558,6 +790,10 @@ serve(async (req) => {
           videoFormat,
           durationSeconds,
           projectScopeId,
+          discoveredSymbols: discovered.symbols,
+          discoveredThemes: discovered.themes,
+          adaptivePriorities,
+          requestId,
         },
         200
       );
@@ -576,6 +812,9 @@ serve(async (req) => {
       durationSeconds,
       videoFormat,
       critic,
+      actor,
+      requestId,
+      sourceFunction,
     });
 
     return json(
@@ -592,6 +831,10 @@ serve(async (req) => {
         videoFormat,
         durationSeconds,
         projectScopeId,
+        discoveredSymbols: discovered.symbols,
+        discoveredThemes: discovered.themes,
+        adaptivePriorities,
+        requestId,
       },
       200
     );

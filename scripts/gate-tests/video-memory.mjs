@@ -130,6 +130,88 @@ async function runGate() {
       return { detail: 'Composite dedupe constraint enforced' };
     });
 
+    await gate.addTest('Versioning: motif writes produce history snapshots', async () => {
+      const seed = {
+        symbol: 'VersionedSigil',
+        style: 'cinematic',
+        narrative_theme: 'ritual',
+        source_project_id: projectScopeId,
+      };
+
+      const { data: entryId, error: upsert1Error } = await rpcClient.rpc('upsert_video_memory_entry', {
+        _symbol: seed.symbol,
+        _style: seed.style,
+        _narrative_theme: seed.narrative_theme,
+        _source_project_id: seed.source_project_id,
+        _video_prompt: 'Version snapshot one',
+        _duration_seconds: 10,
+        _video_format: 'png-sequence-square',
+        _narrative_beats: ['ritual'],
+        _embedding: null,
+        _critic_score: 70,
+        _critic_notes: 'v1',
+        _source_function: 'video-memory-gate',
+      });
+      if (upsert1Error) throw upsert1Error;
+
+      const { error: upsert2Error } = await rpcClient.rpc('upsert_video_memory_entry', {
+        _symbol: seed.symbol,
+        _style: seed.style,
+        _narrative_theme: seed.narrative_theme,
+        _source_project_id: seed.source_project_id,
+        _video_prompt: 'Version snapshot two',
+        _duration_seconds: 12,
+        _video_format: 'png-sequence-square',
+        _narrative_beats: ['ritual', 'transformation'],
+        _embedding: null,
+        _critic_score: 82,
+        _critic_notes: 'v2',
+        _source_function: 'video-memory-gate',
+      });
+      if (upsert2Error) throw upsert2Error;
+
+      const { data: versions, error } = await supabase
+        .from('video_memory_versions')
+        .select('id')
+        .eq('video_memory_id', entryId);
+
+      if (error) throw error;
+      if ((versions || []).length < 2) {
+        throw new Error(`Expected at least 2 version snapshots, got ${(versions || []).length}`);
+      }
+
+      return { detail: `Version snapshots found: ${(versions || []).length}` };
+    });
+
+    await gate.addTest('Governance: role-based audit logs capture motif actions', async () => {
+      const requestId = `gate-${Date.now()}`;
+      const { data: auditId, error: auditError } = await rpcClient.rpc('log_video_memory_audit', {
+        _actor_id: null,
+        _actor_role: 'service_role',
+        _actor_type: 'function',
+        _action: 'gate_audit_probe',
+        _source_function: 'video-memory-gate',
+        _source_project_id: projectScopeId,
+        _memory_id: null,
+        _request_id: requestId,
+        _metadata: { probe: true },
+      });
+      if (auditError) throw auditError;
+
+      const { data: row, error } = await supabase
+        .from('video_memory_audit_logs')
+        .select('id, action, actor_role, actor_type')
+        .eq('id', auditId)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!row || row.action !== 'gate_audit_probe') {
+        throw new Error('Expected governance audit log row not found');
+      }
+
+      return { detail: `Audit log captured with role=${row.actor_role || 'unknown'} type=${row.actor_type}` };
+    });
+
     await gate.addTest('Semantic recall: related motifs surface', async () => {
       if (!openAIApiKey) {
         return { detail: 'Skipped semantic embedding probe (OPENAI_API_KEY not set)' };
