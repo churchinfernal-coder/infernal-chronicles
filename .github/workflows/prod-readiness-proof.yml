@@ -1,0 +1,80 @@
+name: Production Readiness Proof
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - scripts/production-readiness-gate.mjs
+      - supabase/functions/**
+      - package.json
+      - package-lock.json
+
+permissions:
+  contents: read
+
+jobs:
+  readiness-proof:
+    name: Run Production Readiness Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      STRIPE_PRICE_ID: ${{ secrets.STRIPE_PRICE_ID }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run production readiness gate
+        run: npm run prod:readiness:gate
+
+      - name: Capture latest release evidence path
+        if: always()
+        id: evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          latest_release_gate="$(ls -1t evidence/release-gate-*.json 2>/dev/null | head -n 1 || true)"
+          echo "latest_release_gate=${latest_release_gate}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload readiness evidence artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-readiness-evidence-${{ github.run_id }}
+          path: |
+            evidence/*.json
+            PRODUCTION_READINESS_PROOF.md
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Publish summary
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          latest="${{ steps.evidence.outputs.latest_release_gate }}"
+          {
+            echo "## Production Readiness Gate" 
+            echo ""
+            echo "- Workflow: ${{ github.workflow }}"
+            echo "- Run ID: ${{ github.run_id }}"
+            if [ -n "$latest" ]; then
+              echo "- Latest evidence file: $latest"
+            else
+              echo "- Latest evidence file: not found"
+            fi
+            echo ""
+            echo "Evidence JSON files are attached as workflow artifacts."
+          } >> "$GITHUB_STEP_SUMMARY"
